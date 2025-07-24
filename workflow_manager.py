@@ -53,7 +53,7 @@ class WorkflowManager:
         """
         return self.load_workflows()
     
-    def match_workflow(self, message_data: Dict[str, Any], channel_name: str, user_name: str) -> Optional[Dict]:
+    def match_workflow(self, message_data: Dict[str, Any], channel_name: str, user_name: str, is_app_mentioned: bool = False) -> Optional[Dict]:
         """
         Match a message against defined workflows
         
@@ -61,6 +61,7 @@ class WorkflowManager:
             message_data: The Slack message data
             channel_name: Name of the channel
             user_name: Name of the user
+            is_app_mentioned: Whether the app is mentioned in the message
             
         Returns:
             Dict: Matching workflow or None if no match
@@ -68,37 +69,42 @@ class WorkflowManager:
         message_text = message_data.get('text', '')
         
         for workflow in self.workflows:
-            if not workflow.get('enabled', True):
+            # Check if app mention is required
+            app_mention_required = workflow.get('app_mention_required', False)
+            if app_mention_required and not is_app_mentioned:
                 continue
             
-            # Check channel name
-            workflow_channel = workflow.get('channel_name', '*')
-            if workflow_channel != '*' and workflow_channel.lower() != channel_name.lower():
-                continue
-            
-            # Check user name
-            workflow_user = workflow.get('user_name', '*')
-            if workflow_user != '*' and workflow_user.lower() != user_name.lower():
-                continue
-            
-            # Check wildcard pattern
-            wildcard_pattern = workflow.get('wildcard', '')
-            if wildcard_pattern:
-                # Convert wildcard pattern to regex for matching
-                # * matches any sequence of characters
-                # ? matches any single character
-                regex_pattern = wildcard_pattern.replace('*', '.*').replace('?', '.')
-                
-                # Add word boundaries for exact word matching (unless wildcard contains *)
-                if '*' not in wildcard_pattern:
-                    regex_pattern = r'\b' + regex_pattern + r'\b'
-                
-                try:
-                    if not re.search(regex_pattern, message_text, re.IGNORECASE):
-                        continue
-                except re.error as e:
-                    logger.error(f"Invalid wildcard pattern '{wildcard_pattern}': {e}")
+            # Check channel name (optional - skip if not specified)
+            if 'channel_name' in workflow:
+                workflow_channel = workflow.get('channel_name', '*')
+                if workflow_channel != '*' and workflow_channel.lower() != channel_name.lower():
                     continue
+            
+            # Check user name (optional - skip if not specified)
+            if 'user_name' in workflow:
+                workflow_user = workflow.get('user_name', '*')
+                if workflow_user != '*' and workflow_user.lower() != user_name.lower():
+                    continue
+            
+            # Check wildcard pattern (optional - skip if not specified)
+            if 'wildcard' in workflow:
+                wildcard_pattern = workflow.get('wildcard', '')
+                if wildcard_pattern:
+                    # Convert wildcard pattern to regex for matching
+                    # * matches any sequence of characters
+                    # ? matches any single character
+                    regex_pattern = wildcard_pattern.replace('*', '.*').replace('?', '.')
+                    
+                    # Add word boundaries for exact word matching (unless wildcard contains *)
+                    if '*' not in wildcard_pattern:
+                        regex_pattern = r'\b' + regex_pattern + r'\b'
+                    
+                    try:
+                        if not re.search(regex_pattern, message_text, re.IGNORECASE):
+                            continue
+                    except re.error as e:
+                        logger.error(f"Invalid wildcard pattern '{wildcard_pattern}': {e}")
+                        continue
             
             logger.info(f"Workflow matched: {workflow.get('name', 'unnamed')}")
             return workflow
@@ -163,7 +169,7 @@ class WorkflowManager:
             logger.error(f"Error executing workflow: {e}")
             return None
     
-    def process_message(self, message_data: Dict[str, Any], channel_name: str, user_name: str) -> Optional[Dict]:
+    def process_message(self, message_data: Dict[str, Any], channel_name: str, user_name: str, is_app_mentioned: bool = False) -> Optional[Dict]:
         """
         Process a message through the workflow system
         
@@ -171,12 +177,13 @@ class WorkflowManager:
             message_data: The Slack message data
             channel_name: Name of the channel
             user_name: Name of the user
+            is_app_mentioned: Whether the app is mentioned in the message
             
         Returns:
             Dict: Response to send back to Slack or None if no workflow matched
         """
         # Match workflow
-        workflow = self.match_workflow(message_data, channel_name, user_name)
+        workflow = self.match_workflow(message_data, channel_name, user_name, is_app_mentioned)
         print('workflow', workflow)
         if not workflow:
             return None
@@ -191,13 +198,8 @@ class WorkflowManager:
         Returns:
             Dict: Summary of workflows
         """
-        enabled_count = sum(1 for w in self.workflows if w.get('enabled', True))
-        disabled_count = len(self.workflows) - enabled_count
-        
         return {
             "total_workflows": len(self.workflows),
-            "enabled_workflows": enabled_count,
-            "disabled_workflows": disabled_count,
             "workflows_file": self.workflows_file
         }
 

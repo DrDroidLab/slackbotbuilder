@@ -1,6 +1,6 @@
 # AI Slack Bot Builder
 
-A Python-based Slack bot that can process messages, respond to mentions, and automate workflows using AI. Built with FastAPI and designed for extensibility and easy configuration.
+A Ready-to-use Slack bot that can process messages, respond to mentions, and automate workflows using AI. Built with FastAPI and designed for extensibility and easy configuration.
 
 ## Quick Setup
 
@@ -46,8 +46,17 @@ workflows:
     user_name: "*"           # User name to match (or "*" for any user)
     wildcard: "hi"           # Wildcard pattern to match in message text
     action_script: "sample_response.py"
-    enabled: true
+    app_mention_required: true        # Only match if bot is mentioned
 ```
+
+### Workflow Fields
+
+- **`name`**: Display name for the workflow (optional)
+- **`channel_name`**: Only match in this specific channel (optional)
+- **`user_name`**: Only match from this specific user (optional)
+- **`wildcard`**: Pattern to match in message text (optional)
+- **`action_script`**: Script file in the `scripts/` directory (required)
+- **`app_mention_required`**: Only match if bot is mentioned (optional, default: false)
 
 ### Wildcard Patterns
 
@@ -58,36 +67,10 @@ workflows:
 
 After any changes in the workflows and scripts, restart the server. 
 
-## Sample Usage
-
-### 1. Add Bot to Channel
-
-Create a new channel named "drdroid-slack-bot-tester" and add your bot to that channel
-
-### 2. Send Test Message
-
-Send a message containing "hi" in the channel
-
-### 3. Expected Output
-
-The bot should respond with: "👋 This is a sample response from your Slack bot."
-
-## Project Structure
-
-```
-slackbotbuilder/
-├── app.py                      # Main FastAPI application
-├── slack_events.py             # Slack event handlers
-├── slack_credentials_manager.py # Credential management
-├── workflow_manager.py          # Workflow management
-├── slack_manifest.json         # Slack app manifest
-├── credentials.yaml            # Credentials (create this)
-├── workflows.yaml              # Workflow configurations
-├── scripts/                    # Action scripts directory
-│   └── sample_response.py      # Sample response script
-├── pyproject.toml             # Project configuration for uv
-└── README.md                  # This file
-```
+### Sample Usage
+1. Create a new channel named `drdroid-slack-bot-tester` and add your bot to that channel
+2. Send a message containing `hi` in the channel
+3. The bot should respond with: `👋 This is a sample response from your Slack bot.`
 
 ## Health Check
 

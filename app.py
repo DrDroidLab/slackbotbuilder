@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import os
+import asyncio
 from datetime import datetime
 from slack_events import slack_event_handler
 from slack_credentials_manager import credentials_manager
@@ -46,7 +47,11 @@ async def handle_slack_events(request: Request, background_tasks: BackgroundTask
     """Handle Slack event subscriptions"""
     try:
         request_data = await request.json()
-        return await slack_event_handler.handle_event(request_data, request, background_tasks)
+        
+        # Return 200 immediately and process in background
+        background_tasks.add_task(slack_event_handler.handle_event_async, request_data, request)
+        return {"status": "accepted"}
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
