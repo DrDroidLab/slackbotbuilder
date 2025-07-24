@@ -15,11 +15,8 @@ workflows:
     user_name: "*" 
     wildcard: "hi"
     action_script: "sample_response.py"
-    enabled: true
-  
+
   - name: "chatbot"
     channel_name: "drdroid-slack-bot-tester"
-    user_name: "*"
-    wildcard: "*chatbot*"
     action_script: "llm_chat.py"
-    enabled: true
+    app_mention_required: true
