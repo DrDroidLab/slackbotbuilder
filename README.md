@@ -18,6 +18,7 @@ A Ready-to-use Slack bot that can process messages, respond to mentions, and aut
 3. Set the Request URL for Event Subscriptions to: `<ngrok_url>/api/slack/events`
 4. Set the Request URL for Interactivity to: `<ngrok_url>/api/slack/interactive`
 5. Install the app to your workspace and copy the credentials to `credentials.yaml`
+6. Create a channel `drdroid-slack-bot-tester` and add your app to it
 
 
 ### 3. Install Dependencies
