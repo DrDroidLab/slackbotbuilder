@@ -1,10 +1,22 @@
 # Workflow Configuration
 # Each workflow defines conditions for matching messages and actions to execute
 
+# fields available for workflow: Default values will be triggered if not mentioned in the config.
+# name: name of rule. Only for display/readability purposes.
+# channel_name: matched against channel_name. Default is "*" -- matching for any / every user / bot.
+# user_name: matched against user_name/bot_name. Default is "*" -- matching for any / every user / bot.
+# wildcard: matched against the message default. Default is "*" -- matching for any / every text. 
+# action_script: file_path within the scripts directory.
+# app_mention_required: evaluates whether bot was tagged or not. Default is false.
+
 workflows:
   - name: "hello_response"
     channel_name: "drdroid-slack-bot-tester"
     user_name: "*" 
     wildcard: "hi"
     action_script: "sample_response.py"
-    enabled: true
+
+  - name: "chatbot"
+    channel_name: "drdroid-slack-bot-tester"
+    action_script: "chatbot.py"
+    app_mention_required: true
