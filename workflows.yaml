@@ -18,5 +18,18 @@ workflows:
 
   - name: "chatbot"
     channel_name: "drdroid-slack-bot-tester"
-    action_script: "chatbot.py"
+    action_script: "llm_chat.py"
     app_mention_required: true
+    wildcard: "*chatbot*"
+
+  - name: "grafana-ai-tool"
+    channel_name: "drdroid-slack-bot-tester"
+    action_script: "grafana_ai_tool.py"
+    app_mention_required: true
+    wildcard: "*grafana ai*"
+
+  - name: "grafana-tool-non-ai-"
+    channel_name: "drdroid-slack-bot-tester"
+    action_script: "grafana_non_ai_tool.py"
+    app_mention_required: true
+    wildcard: "*grafana non ai tool*"

@@ -182,6 +182,19 @@ class SlackCredentialsManager:
         app_config = self.get_app_config(app_name)
         return app_config.get('app_id') if app_config else None
     
+    def get_openai_api_key(self) -> Optional[str]:
+        """
+        Get OpenAI API key from credentials
+        
+        Returns:
+            str: OpenAI API key or None if not found
+        """
+        if not self.credentials:
+            logger.error("No credentials loaded")
+            return None
+        
+        return self.credentials.get('openai', {}).get('api_key')
+
     def validate_credentials(self, app_name: str = "default") -> bool:
         """
         Validate that all required credentials are present

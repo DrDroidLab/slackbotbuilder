@@ -5,7 +5,7 @@ import hashlib
 import time
 import logging
 from datetime import datetime, timezone
-from fastapi import Request
+from fastapi import Request, BackgroundTasks
 import requests
 from slack_credentials_manager import credentials_manager
 from workflow_manager import workflow_manager
@@ -61,6 +61,11 @@ class SlackEventHandler:
     def handle_message_event(self, event_data, app_name="default"):
         """Handle incoming message events"""
         try:
+            # Skip bot messages to avoid loops
+            if 'bot_id' in event_data:
+                logger.info("Ignoring bot message to prevent loops")
+                return {"status": "ignored", "reason": "Bot message"}
+
             event_type = event_data.get('type')
             event_subtype = event_data.get('subtype')
                         
@@ -140,6 +145,7 @@ class SlackEventHandler:
                 message_type = 'app_mention'
                             
             # Log message processing (instead of storing in database)
+            print(f"Processing message {message_id} from user {user_name} in channel {channel_name} ({channel_id})")
             logger.info(f"Processing message {message_id} from user {user_name} in channel {channel_name} ({channel_id})")
             logger.info(f"Message text: {message_text}")
             logger.info(f"Bot mentioned: {is_bot_mentioned}")
