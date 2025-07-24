@@ -5,7 +5,7 @@ import hashlib
 import time
 import logging
 from datetime import datetime, timezone
-from fastapi import Request
+from fastapi import Request, BackgroundTasks
 import requests
 from slack_credentials_manager import credentials_manager
 from workflow_manager import workflow_manager
@@ -47,6 +47,11 @@ class SlackEventHandler:
     def handle_message_event(self, event_data, app_name="default"):
         """Handle incoming message events"""
         try:
+            # Skip bot messages to avoid loops
+            if 'bot_id' in event_data:
+                logger.info("Ignoring bot message to prevent loops")
+                return {"status": "ignored", "reason": "Bot message"}
+
             event_type = event_data.get('type')
             event_subtype = event_data.get('subtype')
                         
@@ -86,6 +91,7 @@ class SlackEventHandler:
                 message_type = 'app_mention'
                             
             # Log message processing (instead of storing in database)
+            print(f"Processing message {message_id} from user {user_name} in channel {channel_name} ({channel_id})")
             logger.info(f"Processing message {message_id} from user {user_name} in channel {channel_name} ({channel_id})")
             logger.info(f"Message text: {message_text}")
             logger.info(f"Bot mentioned: {is_bot_mentioned}")
@@ -466,7 +472,27 @@ class SlackEventHandler:
             logger.error(f"Error getting channel name: {e}")
             return ''
     
-    async def handle_event(self, request_data, request: Request = None):
+    def process_event_background(self, event, app_name="default"):
+        """Process event in the background"""
+        event_type = event.get('type')
+        if event_type in ['message', 'app_mention']:
+            self.handle_message_event(event, app_name)
+        elif event_type == 'app_installed':
+            self.handle_app_installed_event(event, app_name)
+        elif event_type == 'app_uninstalled':
+            self.handle_app_uninstalled_event(event, app_name)
+        elif event_type == 'channel_created':
+            self.handle_channel_created_event(event, app_name)
+        elif event_type == 'channel_deleted':
+            self.handle_channel_deleted_event(event, app_name)
+        elif event_type == 'member_joined_channel':
+            self.handle_member_joined_channel_event(event, app_name)
+        elif event_type == 'member_left_channel':
+            self.handle_member_left_channel_event(event, app_name)
+        else:
+            logger.info(f"Unhandled event type: {event_type}")
+
+    async def handle_event(self, request_data, request: Request, background_tasks: BackgroundTasks):
         """Main event handler"""
         try:
             # Verify request signature
@@ -494,27 +520,11 @@ class SlackEventHandler:
             if request_data.get('type') == 'url_verification':
                 return self.handle_url_verification(request_data.get('challenge'))
             
-            # Handle events
-            event = request_data.get('event', {})
-            event_type = event.get('type')
+            # Immediately acknowledge the request
+            background_tasks.add_task(self.process_event_background, request_data.get('event', {}), "default")
             
-            if event_type in ['message', 'app_mention']:
-                return self.handle_message_event(event, "default")
-            elif event_type == 'app_installed':
-                return self.handle_app_installed_event(event, "default")
-            elif event_type == 'app_uninstalled':
-                return self.handle_app_uninstalled_event(event, "default")
-            elif event_type == 'channel_created':
-                return self.handle_channel_created_event(event, "default")
-            elif event_type == 'channel_deleted':
-                return self.handle_channel_deleted_event(event, "default")
-            elif event_type == 'member_joined_channel':
-                return self.handle_member_joined_channel_event(event, "default")
-            elif event_type == 'member_left_channel':
-                return self.handle_member_left_channel_event(event, "default")
-            else:
-                logger.info(f"Unhandled event type: {event_type}")
-                return {"status": "ignored"}
+            logger.info("Event acknowledged and scheduled for background processing")
+            return {"status": "accepted"}
             
         except Exception as e:
             logger.error(f"Error handling event: {e}")

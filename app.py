@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import os
@@ -42,11 +42,11 @@ async def handle_slack_interactive(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/slack/events")
-async def handle_slack_events(request: Request):
+async def handle_slack_events(request: Request, background_tasks: BackgroundTasks):
     """Handle Slack event subscriptions"""
     try:
         request_data = await request.json()
-        return await slack_event_handler.handle_event(request_data, request)
+        return await slack_event_handler.handle_event(request_data, request, background_tasks)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
