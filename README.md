@@ -4,28 +4,36 @@ A Python-based Slack bot that can process messages, respond to mentions, and aut
 
 ## Quick Setup
 
-### 1. Slack App Setup
+### 1. Generate a public https url from localhost (using ngrok)
+
+1. Install ngrok: Download from ngrok.com or use a package manager
+2. Run your local server: Start your application on a port (e.g., port 5000)
+3. Create the tunnel: Run `ngrok http 5000`
+4. Get your HTTPS URL: ngrok will provide a free HTTPS URL like `https://abc123.ngrok.io`
+
+### 2. Slack App Setup
 
 1. Go to [Slack API Apps](https://api.slack.com/apps) and create a new app
 2. Copy the JSON from `slack_manifest.json` and paste it into your app configuration
-3. Set the Request URL for Event Subscriptions to: `https://your-domain.com/api/slack/events`
-4. Set the Request URL for Interactivity to: `https://your-domain.com/api/slack/interactive`
+3. Set the Request URL for Event Subscriptions to: `<ngrok_url>/api/slack/events`
+4. Set the Request URL for Interactivity to: `<ngrok_url>/api/slack/interactive`
 5. Install the app to your workspace and copy the credentials to `credentials.yaml`
 
-### 2. Install Dependencies
+
+### 3. Install Dependencies
 
 ```bash
 pip install uv
 uv sync
 ```
 
-### 3. Start the Server
+### 4. Start the Server
 
 ```bash
 uv run python app.py
 ```
 
-The bot will start on `http://localhost:5000`. Make sure this is served by the hostname you have mentioned in the manifest for events subscription.
+The bot will start on `http://localhost:5000`. Your ngrok public url will point to this server.
 
 ## Workflow Configuration
 
@@ -48,6 +56,8 @@ workflows:
 - **`hi*`**: Matches text starting with "hi" (e.g., "hi there")
 - **`*hi`**: Matches text ending with "hi" (e.g., "say hi")
 
+After any changes in the workflows and scripts, restart the server. 
+
 ## Sample Usage
 
 ### 1. Add Bot to Channel
@@ -62,12 +72,29 @@ Send a message containing "hi" in the channel
 
 The bot should respond with: "👋 This is a sample response from your Slack bot."
 
+## Project Structure
+
+```
+slackbotbuilder/
+├── app.py                      # Main FastAPI application
+├── slack_events.py             # Slack event handlers
+├── slack_credentials_manager.py # Credential management
+├── workflow_manager.py          # Workflow management
+├── slack_manifest.json         # Slack app manifest
+├── credentials.yaml            # Credentials (create this)
+├── workflows.yaml              # Workflow configurations
+├── scripts/                    # Action scripts directory
+│   └── sample_response.py      # Sample response script
+├── pyproject.toml             # Project configuration for uv
+└── README.md                  # This file
+```
+
 ## Health Check
 
 Check the bot status:
 
 ```bash
-curl http://localhost:5000/api/health
+curl <ngrok_url>/api/health
 ```
 
 ## License
