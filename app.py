@@ -1,5 +1,5 @@
-from flask import Flask, request, jsonify, Response
-from flask_cors import CORS
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import json
 import os
 from datetime import datetime
@@ -7,41 +7,49 @@ from slack_events import slack_event_handler
 from slack_credentials_manager import credentials_manager
 from workflow_manager import workflow_manager
 
-app = Flask(__name__)
-CORS(app)
+app = FastAPI(title="AI Slack Bot Builder", version="1.0.0")
 
-@app.route('/api/health', methods=['GET'])
-def health_check():
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/api/health")
+async def health_check():
     """Health check endpoint"""
     credentials_summary = credentials_manager.get_credentials_summary()
     workflows_summary = workflow_manager.get_workflows_summary()
-    return jsonify({
+    return {
         "status": "healthy", 
         "message": "AI Slack Bot Builder is running",
         "credentials": credentials_summary,
         "workflows": workflows_summary
-    })
+    }
 
 # Slack Interactive endpoint
-@app.route('/api/slack/interactive', methods=['POST'])
-def handle_slack_interactive():
+@app.post("/api/slack/interactive")
+async def handle_slack_interactive(request: Request):
     """Handle Slack interactive components"""
     try:
         # For now, just return a success response
         # This can be expanded later for handling interactive components
-        return jsonify({"status": "success"})
+        return {"status": "success"}
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.route('/api/slack/events', methods=['POST'])
-def handle_slack_events():
+@app.post("/api/slack/events")
+async def handle_slack_events(request: Request):
     """Handle Slack event subscriptions"""
     try:
-        request_data = request.get_json()
-        return slack_event_handler.handle_event(request_data)
+        request_data = await request.json()
+        return await slack_event_handler.handle_event(request_data, request)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000) 
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=5000) 

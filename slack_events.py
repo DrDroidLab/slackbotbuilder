@@ -5,7 +5,7 @@ import hashlib
 import time
 import logging
 from datetime import datetime, timezone
-from flask import request, jsonify, current_app
+from fastapi import Request
 import requests
 from slack_credentials_manager import credentials_manager
 from workflow_manager import workflow_manager
@@ -42,7 +42,7 @@ class SlackEventHandler:
     def handle_url_verification(self, challenge):
         """Handle Slack URL verification"""
         logger.info("Handling URL verification")
-        return jsonify({"challenge": challenge})
+        return {"challenge": challenge}
     
     def handle_message_event(self, event_data, app_name="default"):
         """Handle incoming message events"""
@@ -52,7 +52,7 @@ class SlackEventHandler:
                         
             # Skip bot messages and message edits/deletions for now
             if event_subtype in ['bot_message', 'message_changed', 'message_deleted']:
-                return jsonify({"status": "ignored"})
+                return {"status": "ignored"}
             
             # Extract message data
             message_id = event_data.get('ts')
@@ -66,7 +66,7 @@ class SlackEventHandler:
             app_config = credentials_manager.get_app_config(app_name)
             if not app_config:
                 logger.error(f"App configuration not found for app: {app_name}")
-                return jsonify({"status": "error", "message": "App not configured"})
+                return {"status": "error", "message": "App not configured"}
             
             # Get user information
             user_info = self.get_user_info(user_id, app_config['bot_token'])
@@ -102,11 +102,11 @@ class SlackEventHandler:
                 self.send_workflow_response(workflow_response, app_config['bot_token'])
                             
             logger.info(f"Processed message {message_id} from user {user_name}")
-            return jsonify({"status": "success"})
+            return {"status": "success"}
             
         except Exception as e:
             logger.error(f"Error processing message event: {e}")
-            return jsonify({"status": "error", "message": str(e)})
+            return {"status": "error", "message": str(e)}
     
     def is_bot_mentioned(self, message_text, bot_user_id, app_name="default"):
         """Check if the bot is mentioned in the message"""
@@ -290,11 +290,11 @@ class SlackEventHandler:
             
             # Log installation event
             logger.info(f"App installed in workspace: {team_name} ({team_id})")
-            return jsonify({"status": "success", "message": "App installation recorded"})
+            return {"status": "success", "message": "App installation recorded"}
             
         except Exception as e:
             logger.error(f"Error handling app installed event: {e}")
-            return jsonify({"status": "error", "message": str(e)}), 500
+            return {"status": "error", "message": str(e)}
     
     def handle_app_uninstalled_event(self, event_data, app_name="default"):
         """Handle app_uninstalled event - when app is removed from a workspace"""
@@ -306,11 +306,11 @@ class SlackEventHandler:
             
             # Log uninstallation event
             logger.info(f"App uninstalled from workspace: {team_id}")
-            return jsonify({"status": "success", "message": "App uninstallation recorded"})
+            return {"status": "success", "message": "App uninstallation recorded"}
             
         except Exception as e:
             logger.error(f"Error handling app uninstalled event: {e}")
-            return jsonify({"status": "error", "message": str(e)}), 500
+            return {"status": "error", "message": str(e)}
     
     def handle_channel_created_event(self, event_data, app_name="default"):
         """Handle channel_created event - when a new channel is created"""
@@ -326,14 +326,14 @@ class SlackEventHandler:
             if channel_id and channel_name:
                 # Log channel creation
                 logger.info(f"Channel created: {channel_name} ({channel_id}) by user {creator_id}")
-                return jsonify({"status": "success", "message": "Channel created"})
+                return {"status": "success", "message": "Channel created"}
             else:
                 logger.error("Missing channel information in event")
-                return jsonify({"status": "error", "message": "Missing channel information"}), 400
+                return {"status": "error", "message": "Missing channel information"}
             
         except Exception as e:
             logger.error(f"Error handling channel created event: {e}")
-            return jsonify({"status": "error", "message": str(e)}), 500
+            return {"status": "error", "message": str(e)}
     
     def handle_channel_deleted_event(self, event_data, app_name="default"):
         """Handle channel_deleted event - when a channel is deleted"""
@@ -346,14 +346,14 @@ class SlackEventHandler:
             if channel_id:
                 # Log channel deletion
                 logger.info(f"Channel deleted: {channel_id}")
-                return jsonify({"status": "success", "message": "Channel deleted"})
+                return {"status": "success", "message": "Channel deleted"}
             else:
                 logger.error("Missing channel ID in event")
-                return jsonify({"status": "error", "message": "Missing channel ID"}), 400
+                return {"status": "error", "message": "Missing channel ID"}
             
         except Exception as e:
             logger.error(f"Error handling channel deleted event: {e}")
-            return jsonify({"status": "error", "message": str(e)}), 500
+            return {"status": "error", "message": str(e)}
     
     def handle_member_joined_channel_event(self, event_data, app_name="default"):
         """Handle member_joined_channel event - when a member (including bot) joins a channel"""
@@ -369,7 +369,7 @@ class SlackEventHandler:
             app_config = credentials_manager.get_app_config(app_name)
             if not app_config:
                 logger.error(f"App configuration not found for app: {app_name}")
-                return jsonify({"status": "error", "message": "App not configured"}), 400
+                return {"status": "error", "message": "App not configured"}
             
             # Get bot user ID
             bot_user_id = self.get_bot_user_id(app_config['bot_token'])
@@ -389,15 +389,15 @@ class SlackEventHandler:
                 else:
                     logger.warning(f"Could not get channel info for {channel_id}")
                 
-                return jsonify({"status": "success", "message": "Bot added to channel"})
+                return {"status": "success", "message": "Bot added to channel"}
             else:
                 # Regular user joined - log the event
                 logger.info(f"User {user_id} joined channel {channel_id}")
-                return jsonify({"status": "success", "message": "Member joined channel"})
+                return {"status": "success", "message": "Member joined channel"}
             
         except Exception as e:
             logger.error(f"Error handling member joined channel event: {e}")
-            return jsonify({"status": "error", "message": str(e)}), 500
+            return {"status": "error", "message": str(e)}
     
     def handle_member_left_channel_event(self, event_data, app_name="default"):
         """Handle member_left_channel event - when a member (including bot) leaves a channel"""
@@ -413,7 +413,7 @@ class SlackEventHandler:
             app_config = credentials_manager.get_app_config(app_name)
             if not app_config:
                 logger.error(f"App configuration not found for app: {app_name}")
-                return jsonify({"status": "error", "message": "App not configured"}), 400
+                return {"status": "error", "message": "App not configured"}
             
             # Get bot user ID
             bot_user_id = self.get_bot_user_id(app_config['bot_token'])
@@ -421,15 +421,15 @@ class SlackEventHandler:
             # Check if the leaving member is our bot
             if user_id == bot_user_id:
                 logger.info(f"Bot left channel: {channel_id}")
-                return jsonify({"status": "success", "message": "Bot removed from channel"})
+                return {"status": "success", "message": "Bot removed from channel"}
             else:
                 # Regular user left - log the event
                 logger.info(f"User {user_id} left channel {channel_id}")
-                return jsonify({"status": "success", "message": "Member left channel"})
+                return {"status": "success", "message": "Member left channel"}
             
         except Exception as e:
             logger.error(f"Error handling member left channel event: {e}")
-            return jsonify({"status": "error", "message": str(e)}), 500
+            return {"status": "error", "message": str(e)}
     
     def get_channel_info(self, channel_id, bot_token):
         """Get channel information from Slack API"""
@@ -466,26 +466,29 @@ class SlackEventHandler:
             logger.error(f"Error getting channel name: {e}")
             return ''
     
-    def handle_event(self, request_data):
+    async def handle_event(self, request_data, request: Request = None):
         """Main event handler"""
         try:
             # Verify request signature
-            signature = request.headers.get('X-Slack-Signature')
-            timestamp = request.headers.get('X-Slack-Request-Timestamp')
+            signature = request.headers.get('X-Slack-Signature') if request else None
+            timestamp = request.headers.get('X-Slack-Request-Timestamp') if request else None
             
             if not signature or not timestamp:
                 logger.error("Missing signature or timestamp")
-                return jsonify({"status": "error", "message": "Missing signature"}), 400
+                return {"status": "error", "message": "Missing signature"}
             
             # Check if request is too old (replay attack protection)
             if abs(time.time() - int(timestamp)) > 60 * 5:  # 5 minutes
                 logger.error("Request timestamp too old")
-                return jsonify({"status": "error", "message": "Request too old"}), 400
+                return {"status": "error", "message": "Request too old"}
+            
+            # Get request body for signature verification
+            request_body = await request.body() if request else b""
             
             # Verify signature using default app
-            if not self.verify_signature(request.get_data(), signature, timestamp, "default"):
+            if not self.verify_signature(request_body, signature, timestamp, "default"):
                 logger.error("Invalid signature")
-                return jsonify({"status": "error", "message": "Invalid signature"}), 400
+                return {"status": "error", "message": "Invalid signature"}
             
             # Handle URL verification
             if request_data.get('type') == 'url_verification':
@@ -511,11 +514,11 @@ class SlackEventHandler:
                 return self.handle_member_left_channel_event(event, "default")
             else:
                 logger.info(f"Unhandled event type: {event_type}")
-                return jsonify({"status": "ignored"})
+                return {"status": "ignored"}
             
         except Exception as e:
             logger.error(f"Error handling event: {e}")
-            return jsonify({"status": "error", "message": str(e)}), 500
+            return {"status": "error", "message": str(e)}
 
 # Initialize event handler
 slack_event_handler = SlackEventHandler() 
