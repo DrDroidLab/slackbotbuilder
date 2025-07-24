@@ -1,0 +1,7 @@
+Flask
+PyGithub
+psycopg2-binary
+python-dotenv
+requests
+flask-cors
+PyYAML 

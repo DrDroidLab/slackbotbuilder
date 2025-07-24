@@ -1,0 +1,10 @@
+# Workflow Configuration
+# Each workflow defines conditions for matching messages and actions to execute
+
+workflows:
+  - name: ""
+    channel_name: ""
+    user_name: "" 
+    regex: ""
+    action_script: ""
+    enabled: true
