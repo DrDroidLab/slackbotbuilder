@@ -1,15 +1,18 @@
 # AI Slack Bot Builder
 
-A Python-based Slack bot that can process messages, respond to mentions, and automate workflows using AI.
+A Python-based Slack bot that can process messages, respond to mentions, and automate workflows using AI. Built with Flask and designed for extensibility and easy configuration.
 
 ## Features
 
-- **Message Processing**: Handles incoming messages and app mentions
+- **Message Processing**: Handles incoming messages and app mentions with intelligent routing
 - **Event Subscriptions**: Listens to various Slack events (channel creation, member joins, etc.)
 - **Interactive Components**: Supports interactive elements like buttons and modals
-- **Credential Management**: Secure YAML-based credential storage
+- **Credential Management**: Secure YAML-based credential storage with validation
 - **Workflow System**: Configurable workflows that match messages and execute custom scripts
-- **Health Monitoring**: Built-in health check endpoints
+- **Health Monitoring**: Built-in health check endpoints with detailed status information
+- **Multi-App Support**: Architecture designed to support multiple Slack apps (currently configured for single app)
+- **Security**: Request signature verification and timestamp validation
+- **Logging**: Comprehensive logging for debugging and monitoring
 
 ## Quick Start
 
@@ -47,17 +50,9 @@ In your Slack app settings:
 1. **Event Subscriptions**: Set the Request URL to your events endpoint
 2. **Interactivity & Shortcuts**: Set the Request URL to your interactive endpoint
 3. **OAuth & Permissions**: Install the app to your workspace
+4. **Basic Information**: Copy the credentials to your `credentials.yaml`
 
-### 5. Configure Your Slack App
-
-In your Slack app settings:
-
-1. **Event Subscriptions**: Set the Request URL to your events endpoint
-2. **Interactivity & Shortcuts**: Set the Request URL to your interactive endpoint
-3. **OAuth & Permissions**: Install the app to your workspace
-4. **Basic Information**: Copy the credentials to your `slack_credentials.yaml`
-
-### 6. Run the Bot
+### 5. Run the Bot
 
 ```bash
 python app.py
@@ -85,7 +80,7 @@ api:
 
 ### Single App Configuration
 
-The current schema supports a single Slack app configuration. If you need multiple apps, you can modify the schema or use separate credential files.
+The current schema supports a single Slack app configuration. The architecture is designed to support multiple apps, but currently configured for a single app setup.
 
 ## Workflow System
 
@@ -98,9 +93,9 @@ Workflows are defined in `workflows.yaml`:
 ```yaml
 workflows:
   - name: "hello_response"
-    channel_name: "general"  # Channel name to match (or "*" for any channel)
+    channel_name: "*"        # Channel name to match (or "*" for any channel)
     user_name: "*"           # User name to match (or "*" for any user)
-    regex: "hello|hi|hey"    # Regex pattern to match in message text
+    wildcard: "hi"           # Wildcard pattern to match in message text
     action_script: "hello_response.py"
     enabled: true
 ```
@@ -110,9 +105,18 @@ workflows:
 - **name**: Unique identifier for the workflow
 - **channel_name**: Channel name to match (use "*" for any channel)
 - **user_name**: User name to match (use "*" for any user)
-- **regex**: Regular expression to match in message text
+- **wildcard**: Wildcard pattern to match in message text
 - **action_script**: Path to the script in the `scripts/` directory
 - **enabled**: Whether the workflow is active (true/false)
+
+### Wildcard Patterns
+
+The wildcard system supports simple pattern matching:
+- **`hi`**: Matches exact word "hi" (case-insensitive)
+- **`*hi*`**: Matches any text containing "hi" (e.g., "this", "history")
+- **`hi*`**: Matches text starting with "hi" (e.g., "hi there", "history")
+- **`*hi`**: Matches text ending with "hi" (e.g., "say hi", "oh hi")
+- **`?hi`**: Matches text with any single character before "hi" (e.g., "ahi", "bhi")
 
 ### Action Scripts
 
@@ -133,8 +137,7 @@ Action scripts are Python files in the `scripts/` directory that:
 
 ### Sample Scripts
 
-- **`hello_response.py`**: Responds with "hi" when someone says hello
-- **`bot_mention_handler.py`**: Handles when the bot is mentioned
+- **`hello_response.py`**: Responds with "hi 👋" when someone says hello
 
 ### Creating Custom Scripts
 
@@ -161,19 +164,38 @@ Action scripts are Python files in the `scripts/` directory that:
 ```
 slackbotbuilder/
 ├── app.py                      # Main Flask application
-├── slack_events.py             # Slack event handlers
-├── slack_credentials_manager.py # Credential management
-├── workflow_manager.py          # Workflow management
-├── slack_manifest.json         # Slack app manifest
+├── slack_events.py             # Slack event handlers with signature verification
+├── slack_credentials_manager.py # Credential management and validation
+├── workflow_manager.py          # Workflow management and execution
+├── slack_manifest.json         # Slack app manifest with required scopes
 ├── credentials.yaml            # Credentials (create this)
 ├── workflows.yaml              # Workflow configurations
 ├── scripts/                    # Action scripts directory
-│   ├── hello_response.py       # Sample hello response script
-│   └── bot_mention_handler.py  # Bot mention handler script
+│   └── hello_response.py       # Sample hello response script
 ├── setup_credentials.py        # Setup script
 ├── requirements.txt            # Python dependencies
 └── README.md                  # This file
 ```
+
+### Core Components
+
+#### SlackEventHandler (`slack_events.py`)
+- Handles all Slack event types (messages, app mentions, channel events, etc.)
+- Verifies request signatures for security
+- Processes messages through the workflow system
+- Manages bot responses and interactions
+
+#### WorkflowManager (`workflow_manager.py`)
+- Loads and manages workflow configurations
+- Matches messages against workflow patterns
+- Executes action scripts and processes responses
+- Provides workflow status and summary information
+
+#### SlackCredentialsManager (`slack_credentials_manager.py`)
+- Manages YAML-based credential storage
+- Validates credential completeness
+- Provides secure access to app configurations
+- Supports credential reloading
 
 ### Adding New Event Handlers
 
@@ -224,6 +246,15 @@ curl http://localhost:5000/api/health
 - Signing verification prevents request forgery
 - Timestamp validation prevents replay attacks
 - No sensitive data is logged
+- Request signature verification for all Slack events
+
+## Dependencies
+
+- **Flask**: Web framework for the API server
+- **PyYAML**: YAML configuration file handling
+- **requests**: HTTP client for Slack API calls
+- **flask-cors**: CORS support for web requests
+- **hmac/hashlib**: Security signature verification
 
 ## License
 

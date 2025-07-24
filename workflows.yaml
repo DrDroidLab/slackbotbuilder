@@ -2,9 +2,9 @@
 # Each workflow defines conditions for matching messages and actions to execute
 
 workflows:
-  - name: ""
-    channel_name: ""
-    user_name: "" 
-    regex: ""
-    action_script: ""
+  - name: "hello_response"
+    channel_name: "drdroid-slack-bot-tester"
+    user_name: "*" 
+    wildcard: "hi"
+    action_script: "sample_response.py"
     enabled: true

@@ -42,7 +42,7 @@ def main():
         
         # Create response
         response = {
-            "text": "hi 👋",
+            "text": "👋 This is a sample response from your Slack bot.",
             "channel": channel_id,
             "thread_ts": message_ts,  # Reply in thread
             "response_type": "in_channel"

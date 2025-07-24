@@ -81,10 +81,24 @@ class WorkflowManager:
             if workflow_user != '*' and workflow_user.lower() != user_name.lower():
                 continue
             
-            # Check regex pattern
-            regex_pattern = workflow.get('regex', '')
-            if regex_pattern and not re.search(regex_pattern, message_text, re.IGNORECASE):
-                continue
+            # Check wildcard pattern
+            wildcard_pattern = workflow.get('wildcard', '')
+            if wildcard_pattern:
+                # Convert wildcard pattern to regex for matching
+                # * matches any sequence of characters
+                # ? matches any single character
+                regex_pattern = wildcard_pattern.replace('*', '.*').replace('?', '.')
+                
+                # Add word boundaries for exact word matching (unless wildcard contains *)
+                if '*' not in wildcard_pattern:
+                    regex_pattern = r'\b' + regex_pattern + r'\b'
+                
+                try:
+                    if not re.search(regex_pattern, message_text, re.IGNORECASE):
+                        continue
+                except re.error as e:
+                    logger.error(f"Invalid wildcard pattern '{wildcard_pattern}': {e}")
+                    continue
             
             logger.info(f"Workflow matched: {workflow.get('name', 'unnamed')}")
             return workflow
