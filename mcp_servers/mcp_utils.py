@@ -5,9 +5,27 @@ import json
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# load mcp.json
-with open('mcp_servers/mcp.json', 'r') as f:
-    mcp_servers = json.load(f)
+# Load MCP server configuration from mcp.json
+mcp_servers = {}
+
+try:
+    with open('mcp_servers/mcp.json', 'r') as f:
+        external_config = json.load(f)
+        # Handle the new format with mcpServers wrapper
+        if "mcpServers" in external_config:
+            # Convert the new format to the expected format
+            for server_name, server_config in external_config["mcpServers"].items():
+                mcp_servers[server_name] = server_config
+        else:
+            # Fallback to old format
+            mcp_servers.update(external_config)
+        logger.info("Loaded MCP configuration successfully")
+except FileNotFoundError:
+    logger.error("mcp.json file not found. Please create mcp_servers/mcp.json with your MCP server configuration.")
+    raise
+except Exception as e:
+    logger.error(f"Error loading MCP configuration: {e}")
+    raise
 
 # MCP URL configuration
 

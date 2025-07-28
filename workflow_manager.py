@@ -113,6 +113,30 @@ class WorkflowManager:
     
     def execute_workflow(self, workflow: Dict, message_data: Dict[str, Any]) -> Optional[Dict]:
         """
+        Execute a workflow action script or prompt
+        
+        Args:
+            workflow: The workflow configuration
+            message_data: The Slack message data
+            
+        Returns:
+            Dict: Response from the script or None if failed
+        """
+        # Check for action_prompt first
+        action_prompt = workflow.get('action_prompt')
+        if action_prompt:
+            return self.execute_prompt_workflow(workflow, message_data)
+        
+        # Fall back to action_script
+        action_script = workflow.get('action_script')
+        if action_script:
+            return self.execute_script_workflow(workflow, message_data)
+        
+        logger.error("No action_script or action_prompt specified in workflow")
+        return None
+    
+    def execute_script_workflow(self, workflow: Dict, message_data: Dict[str, Any]) -> Optional[Dict]:
+        """
         Execute a workflow action script
         
         Args:
@@ -167,6 +191,77 @@ class WorkflowManager:
             return None
         except Exception as e:
             logger.error(f"Error executing workflow: {e}")
+            return None
+    
+    def execute_prompt_workflow(self, workflow: Dict, message_data: Dict[str, Any]) -> Optional[Dict]:
+        """
+        Execute a workflow action prompt
+        
+        Args:
+            workflow: The workflow configuration
+            message_data: The Slack message data
+            
+        Returns:
+            Dict: Response from the prompt executor or None if failed
+        """
+        try:
+            action_prompt = workflow.get('action_prompt')
+            if not action_prompt:
+                logger.error("No action prompt specified in workflow")
+                return None
+            
+            # Read the prompt file
+            prompt_path = os.path.join('prompts', action_prompt)
+            if not os.path.exists(prompt_path):
+                logger.error(f"Action prompt file not found: {prompt_path}")
+                return None
+            
+            # Read the prompt content
+            with open(prompt_path, 'r') as file:
+                prompt_content = file.read()
+            
+            # Execute the prompt executor script
+            script_path = os.path.join('scripts', 'prompt_executor.py')
+            if not os.path.exists(script_path):
+                logger.error(f"Prompt executor script not found: {script_path}")
+                return None
+            
+            # Make script executable
+            os.chmod(script_path, 0o755)
+            
+            # Prepare the message JSON with prompt content
+            enhanced_message = message_data.copy()
+            enhanced_message['prompt_content'] = prompt_content
+            
+            message_json = json.dumps(enhanced_message)
+            
+            # Execute the script
+            logger.info(f"Executing prompt workflow: {action_prompt}")
+            result = subprocess.run(
+                [sys.executable, script_path, message_json],
+                capture_output=True,
+                text=True,
+                timeout=60  # 60 second timeout for LLM operations
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"Prompt execution failed: {result.stderr}")
+                return None
+            
+            # Parse the response
+            try:
+                response = json.loads(result.stdout.strip())
+                logger.info(f"Prompt response: {response}")
+                return response
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON response from prompt executor: {e}")
+                return None
+                
+        except subprocess.TimeoutExpired:
+            logger.error(f"Prompt execution timed out: {action_prompt}")
+            return None
+        except Exception as e:
+            logger.error(f"Error executing prompt workflow: {e}")
             return None
     
     def process_message(self, message_data: Dict[str, Any], channel_name: str, user_name: str, is_app_mentioned: bool = False) -> Optional[Dict]:
