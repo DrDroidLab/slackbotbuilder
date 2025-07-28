@@ -10,6 +10,12 @@
 # app_mention_required: evaluates whether bot was tagged or not. Default is false.
 
 workflows:
+  - name: "prompt_based_ai"
+    channel_name: "drdroid-slack-bot-tester"
+    action_prompt: "sample_prompt.md"
+    app_mention_required: true
+    wildcard: "*prompt_run*"
+
   - name: "hello_response"
     channel_name: "drdroid-slack-bot-tester"
     user_name: "*" 

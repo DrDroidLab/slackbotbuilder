@@ -4,31 +4,12 @@ import sys
 import logging
 from openai import OpenAI
 from slack_credentials_manager import credentials_manager
-
-MCP_URL = "http://localhost:8000/mcp"  # Change if your server is running elsewhere
+from mcp_servers.mcp_utils import send_jsonrpc, fetch_tools_list, execute_tool
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def send_jsonrpc(method, params=None, request_id=1):
-    """Sends a JSON-RPC request to the MCP server."""
-    payload = {
-        "jsonrpc": "2.0",
-        "method": method,
-        "params": params or {},
-        "id": request_id,
-    }
-    try:
-        resp = requests.post(MCP_URL, json=payload, timeout=60)
-        resp.raise_for_status()
-        return resp.json()
-    except requests.Timeout:
-        logger.error("Request to MCP server timed out.")
-        return {"error": {"message": "Request timed out"}}
-    except requests.RequestException as e:
-        logger.error(f"HTTP error: {e}")
-        return {"error": {"message": str(e)}}
 
 def get_llm_decision(prompt, tools, api_key):
     """Gets a decision from the LLM on whether to call a tool."""
@@ -63,7 +44,7 @@ def main():
             return {"text": "Please provide a prompt.", "channel": channel_id, "thread_ts": message_ts}
 
         # 1. Get tools from MCP server
-        tools_list_resp = send_jsonrpc("tools/list")
+        tools_list_resp = fetch_tools_list("Sample_name_no_auth", "tools/list")
         if "error" in tools_list_resp or "result" not in tools_list_resp:
             return {"text": "Error: Could not retrieve tools from the MCP server.", "channel": channel_id, "thread_ts": message_ts}
         
@@ -89,7 +70,7 @@ def main():
             
             logger.info(f"LLM decided to call tool '{tool_name}' with args: {tool_args}")
             
-            tool_response = send_jsonrpc("tools/call", {"name": tool_name, "arguments": tool_args})
+            tool_response = execute_tool("Sample_name_no_auth", tool_name, tool_args)
             
             if "error" in tool_response:
                 response_text = f"Error executing tool '{tool_name}': {tool_response['error']['message']}"

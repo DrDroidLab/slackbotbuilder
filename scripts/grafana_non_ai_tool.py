@@ -1,29 +1,13 @@
-import requests
 import json
 import sys
 import logging
-
-MCP_URL = "http://localhost:8000/mcp"  # Change if your server is running elsewhere
+from mcp_servers.mcp_utils import send_jsonrpc, fetch_tools_list, execute_tool
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def send_jsonrpc(method, params=None, request_id=1):
-    payload = {
-        "jsonrpc": "2.0",
-        "method": method,
-        "params": params or {},
-        "id": request_id,
-    }
-    resp = requests.post(MCP_URL, json=payload)
-    try:
-        resp.raise_for_status()
-    except Exception as e:
-        logger.error(f"HTTP error: {e}")
-        logger.error(resp.text)
-        return None
-    return resp.json()
+
 
 def main():
     try:
@@ -40,16 +24,16 @@ def main():
         
         # 1. Initialize
         init_params = {"protocolVersion": "2025-06-18"}
-        init_resp = send_jsonrpc("initialize", init_params, request_id=1)
+        init_resp = send_jsonrpc("sample_server_1", "initialize", init_params, request_id=1)
         
         # 2. List tools
-        tools_resp = send_jsonrpc("tools/list", request_id=2)
+        tools_resp = fetch_tools_list("sample_server_1", "tools/list", request_id=2)
         
         # 3. Call test_connection
-        test_conn_resp = send_jsonrpc("tools/call", {"name": "test_connection", "arguments": {}}, request_id=3)
+        test_conn_resp = execute_tool("sample_server_1", "test_connection", {}, request_id=3)
         
         # 4. Call fetch_dashboards
-        dashboards_resp = send_jsonrpc("tools/call", {"name": "grafana_fetch_all_dashboards", "arguments": {}}, request_id=4)
+        dashboards_resp = execute_tool("sample_server_1", "grafana_fetch_all_dashboards", {}, request_id=4)
         
         # Prepare a summary text for Slack
         dashboards_text = json.dumps(dashboards_resp, indent=2) if dashboards_resp else "No dashboards found."
