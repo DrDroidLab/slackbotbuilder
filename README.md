@@ -56,8 +56,9 @@ workflows:
 - **`channel_name`**: Only match in this specific channel (optional)
 - **`user_name`**: Only match from this specific user (optional)
 - **`wildcard`**: Pattern to match in message text (optional)
-- **`action_script`**: Script file in the `scripts/` directory (required)
 - **`app_mention_required`**: Only match if bot is mentioned (optional, default: false)
+- **`action_script`**: Script file in the `scripts/` directory (optional)
+- **`action_prompt`**: Prompt file in the `prompts/` directory (optional)
 
 ### Wildcard Patterns
 
