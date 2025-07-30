@@ -30,7 +30,9 @@
         "channels:manage",
         "groups:write",
         "im:write",
-        "mpim:write"
+        "mpim:write",
+        "files:write",
+        "files:read"
       ]
     }
   },

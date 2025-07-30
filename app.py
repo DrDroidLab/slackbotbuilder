@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import os
@@ -47,14 +48,16 @@ async def handle_slack_events(request: Request, background_tasks: BackgroundTask
     """Handle Slack event subscriptions"""
     try:
         request_data = await request.json()
-        
+        print(request.headers)
         # Return 200 immediately and process in background
         background_tasks.add_task(slack_event_handler.handle_event_async, request_data, request)
-        return {"status": "accepted"}
+        if request_data.get('type') == 'url_verification':
+            return JSONResponse({"status": "accepted", "challenge": request_data.get('challenge')}, status_code=200)
+        return JSONResponse({"status": "accepted"}, status_code=200)
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5000) 
+    uvicorn.run(app, host="0.0.0.0", port=5000)

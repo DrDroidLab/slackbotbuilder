@@ -4,8 +4,9 @@ import re
 import subprocess
 import json
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 import sys
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -108,22 +109,27 @@ class WorkflowManager:
             
             logger.info(f"Workflow matched: {workflow.get('name', 'unnamed')}")
             return workflow
-        
         return None
     
     def execute_workflow(self, workflow: Dict, message_data: Dict[str, Any]) -> Optional[Dict]:
-        """
-        Execute a workflow action script
+        # Check for action_prompt first
+        action_prompt = workflow.get('action_prompt')
+        if action_prompt:
+            return self.execute_prompt_workflow(message_data, action_prompt)
         
-        Args:
-            workflow: The workflow configuration
-            message_data: The Slack message data
-            
-        Returns:
-            Dict: Response from the script or None if failed
-        """
+        # Fall back to action_script
+        action_script = workflow.get('action_script')
+        if action_script:
+            return self.execute_script_workflow(message_data, action_script)
+        
+        if not action_prompt and not action_script:
+            return self.execute_prompt_workflow(message_data)
+
+        logger.error("No action_script or action_prompt specified in workflow")
+        return None            
+
+    def execute_script_workflow(self, message_data: Dict[str, Any], action_script) -> Optional[Dict]:
         try:
-            action_script = workflow.get('action_script')
             if not action_script:
                 logger.error("No action script specified in workflow")
                 return None
@@ -169,39 +175,111 @@ class WorkflowManager:
             logger.error(f"Error executing workflow: {e}")
             return None
     
-    def process_message(self, message_data: Dict[str, Any], channel_name: str, user_name: str, is_app_mentioned: bool = False) -> Optional[Dict]:
-        """
-        Process a message through the workflow system
-        
-        Args:
-            message_data: The Slack message data
-            channel_name: Name of the channel
-            user_name: Name of the user
-            is_app_mentioned: Whether the app is mentioned in the message
+    def execute_prompt_workflow(self, message_data: Dict[str, Any],action_prompt=None) -> Optional[Dict]:
+        try:
+            enhanced_message = message_data.copy()
+            if action_prompt:          
+                # Read the prompt file
+                prompt_path = os.path.join('prompts', action_prompt)
+                if not os.path.exists(prompt_path):
+                    logger.error(f"Action prompt file not found: {prompt_path}")
+                    return None
+                
+                # Read the prompt content
+                with open(prompt_path, 'r') as file:
+                    prompt_content = file.read()
+                
+                # Prepare the message JSON with prompt content
+                enhanced_message['specific_instructions_to_ai'] = prompt_content
             
-        Returns:
-            Dict: Response to send back to Slack or None if no workflow matched
-        """
+            message_json = json.dumps(enhanced_message)
+            # Execute the prompt executor script
+            script_path = 'prompt_executor.py'
+            if not os.path.exists(script_path):
+                logger.error(f"Prompt executor script not found: {script_path}")
+                return None
+            
+            # Make script executable
+            os.chmod(script_path, 0o755)
+            
+            
+            # Execute the script
+            logger.info(f"Executing prompt workflow: {action_prompt}")
+            result = subprocess.run(
+                [sys.executable, script_path, message_json],
+                capture_output=True,
+                text=True,
+                timeout=60  # 60 second timeout for LLM operations
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"Prompt execution failed: {result.stderr}")
+                return None
+            
+            # Parse the response
+            try:
+                response = json.loads(result.stdout.strip())
+                logger.info(f"Prompt response: {response}")
+                return response
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON response from prompt executor: {e}")
+                return None
+                
+        except subprocess.TimeoutExpired:
+            logger.error(f"Prompt execution timed out: {action_prompt}")
+            return None
+        except Exception as e:
+            logger.error(f"Error executing prompt workflow: {e}")
+            return None
+    
+    def process_message(self, message_data: Dict[str, Any], channel_name: str, user_name: str, is_app_mentioned: bool = False) -> Optional[Dict]:
         # Match workflow
         workflow = self.match_workflow(message_data, channel_name, user_name, is_app_mentioned)
         print('workflow', workflow)
         if not workflow:
             return None
-        
+
+        if 'thread_ts' in message_data and 'ts' in message_data and message_data['thread_ts']!=message_data['ts']:
+            conversation_history = self.get_conversation_history(message_data['channel'], message_data['thread_ts'])
+            if conversation_history:
+                message_data['conversation_history'] = conversation_history
+
         # Execute workflow
         return self.execute_workflow(workflow, message_data)
     
     def get_workflows_summary(self) -> Dict:
-        """
-        Get a summary of loaded workflows
-        
-        Returns:
-            Dict: Summary of workflows
-        """
         return {
             "total_workflows": len(self.workflows),
             "workflows_file": self.workflows_file
         }
+    
+    def get_conversation_history(self, channel_id, thread_ts):
+        from slack_credentials_manager import credentials_manager
+        slack_api_base = "https://slack.com/api"
+        slack_token = credentials_manager.get_app_config()['bot_token']
+        url = slack_api_base + "/conversations.replies"
+        headers = {
+            "Authorization": f"Bearer {slack_token}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
+        params = {
+            "channel": channel_id,
+            "ts": thread_ts
+        }
+        response = requests.post(url, headers=headers, data=params)
+        
+        if not response.ok:
+            raise Exception(f"Error fetching thread messages: {response.text}")
+            
+        data = response.json()
+        
+        if not data.get("ok"):
+            raise Exception(f"Slack API error: {data.get('error')}")
+            
+        thread_messages = data.get("messages", [])
+        return thread_messages
+
 
 # Global instance
 workflow_manager = WorkflowManager() 

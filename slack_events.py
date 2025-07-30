@@ -1,14 +1,14 @@
-import os
-import json
 import hmac
 import hashlib
 import time
 import logging
-from datetime import datetime, timezone
 from fastapi import Request, BackgroundTasks
 import requests
 from slack_credentials_manager import credentials_manager
 from workflow_manager import workflow_manager
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+from markdown_to_mrkdwn import SlackMarkdownConverter
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +25,14 @@ class SlackEventHandler:
             self.processed_messages = set(list(self.processed_messages)[-500:])
             print(f"🧹 CLEANUP: Reduced processed messages to 500")
 
-    def verify_signature(self, request_body, signature, timestamp, app_name="default"):
+    def verify_signature(self, request_body, signature, timestamp):
         """Verify Slack request signature"""
         try:
             # Get the signing secret from credentials
-            signing_secret = credentials_manager.get_signing_secret(app_name)
+            signing_secret = credentials_manager.get_signing_secret()
             
             if not signing_secret:
-                logger.error(f"No signing secret available for app: {app_name}")
+                logger.error(f"No signing secret available")
                 return False
             
             # Create the signature base string
@@ -48,130 +48,14 @@ class SlackEventHandler:
             logger.error(f"Error verifying signature: {e}")
             return False
     
-    def handle_url_verification(self, challenge):
-        """Handle Slack URL verification"""
-        logger.info("Handling URL verification")
-        return {"challenge": challenge}
-
-    async def handle_url_verification_async(self, challenge):
-        """Handle Slack URL verification (asynchronous)"""
-        logger.info("Handling URL verification")
-        # For async version, we don't return anything since it's background processing
-    
-    def handle_message_event(self, event_data, app_name="default"):
-        """Handle incoming message events"""
-        try:
-            # Skip bot messages to avoid loops
-            if 'bot_id' in event_data:
-                logger.info("Ignoring bot message to prevent loops")
-                return {"status": "ignored", "reason": "Bot message"}
-
-            event_type = event_data.get('type')
-            event_subtype = event_data.get('subtype')
-                        
-            # Skip bot messages and message edits/deletions for now
-            if event_subtype in ['bot_message', 'message_changed', 'message_deleted']:
-                logger.info(f"Ignoring message with subtype: {event_subtype}")
-                return {"status": "ignored"}
-                        
-            # Extract message data
-            message_id = event_data.get('ts')
-            channel_id = event_data.get('channel')
-            user_id = event_data.get('user')
-            message_text = event_data.get('text', '')
-            thread_timestamp = event_data.get('thread_ts')
-            parent_message_id = event_data.get('parent_user_id')
-            
-            # Deduplication: Skip if we've already processed this message
-            message_key = f"{message_id}_{channel_id}_{user_id}"
-            if message_key in self.processed_messages:
-                print(f"🔄 SKIPPING: Already processed message: {message_key}")
-                return {"status": "already_processed"}
-            
-            # Mark this message as processed
-            self.processed_messages.add(message_key)
-            print(f"✅ PROCESSING: New message: {message_key}")
-            
-            # Cleanup old messages if needed
-            self.cleanup_processed_messages()
-            
-            # Debug: Log the full event data to see what we're getting
-            print(f"🔍 DEBUG: Full event data: {event_data}")
-            
-            # Get app configuration from credentials
-            app_config = credentials_manager.get_app_config(app_name)
-            if not app_config:
-                logger.error(f"App configuration not found for app: {app_name}")
-                return {"status": "error", "message": "App not configured"}
-            
-            # Skip messages sent by the bot itself
-            bot_user_id = self.get_bot_user_id(app_config['bot_token'])
-            print(f"🔍 DEBUG: Message from user_id: {user_id}, bot_user_id: {bot_user_id}")
-            if user_id == bot_user_id:
-                print(f"🚫 IGNORING: Message from bot itself: {message_id}")
-                return {"status": "ignored"}
-            
-            # Additional check: Skip if message has bot_id field (indicates bot message)
-            if event_data.get('bot_id'):
-                print(f"🚫 IGNORING: Message with bot_id: {event_data.get('bot_id')}")
-                return {"status": "ignored"}
-            
-            # Additional check: Skip if message text matches bot's typical responses
-            bot_response_patterns = [
-                "👋 This is a sample response from your Slack bot.",
-                "hi 👋",
-                "I received your message:"
-            ]
-            for pattern in bot_response_patterns:
-                if pattern in message_text:
-                    print(f"🚫 IGNORING: Message matches bot response pattern: {pattern}")
-                    return {"status": "ignored"}
-            
-            # Get user information
-            user_info = self.get_user_info(user_id, app_config['bot_token'])
-            user_name = user_info.get('name', 'unknown')
-            user_display_name = user_info.get('real_name', user_name)
-            
-            # Get channel name
-            channel_name = self.get_channel_name(channel_id, app_config['bot_token'])
-                        
-            # Check if bot is mentioned
-            bot_user_id = self.get_bot_user_id(app_config['bot_token'])
-            is_bot_mentioned = self.is_bot_mentioned(message_text, bot_user_id, app_name)
-                        
-            # Determine message type
-            message_type = 'message'
-            if event_type == 'app_mention':
-                message_type = 'app_mention'
-                            
-            # Log message processing (instead of storing in database)
-            print(f"Processing message {message_id} from user {user_name} in channel {channel_name} ({channel_id})")
-            logger.info(f"Processing message {message_id} from user {user_name} in channel {channel_name} ({channel_id})")
-            logger.info(f"Message text: {message_text}")
-            logger.info(f"Bot mentioned: {is_bot_mentioned}")
-                        
-            # Process message through workflow system
-            workflow_response = workflow_manager.process_message(event_data, channel_name, user_display_name, is_bot_mentioned)
-                            
-            # Send workflow response if available
-            if workflow_response:
-                self.send_workflow_response(workflow_response, app_config['bot_token'])
-                            
-            logger.info(f"Processed message {message_id} from user {user_name}")
-            return {"status": "success"}
-            
-        except Exception as e:
-            logger.error(f"Error processing message event: {e}")
-            return {"status": "error", "message": str(e)}
-
-    async def handle_message_event_async(self, event_data, app_name="default"):
+    async def handle_message_event_async(self, event_data):
         """Handle incoming message events (asynchronous)"""
         try:
             event_type = event_data.get('type')
             event_subtype = event_data.get('subtype')
                         
             # Skip bot messages and message edits/deletions for now
-            if event_subtype in ['bot_message', 'message_changed', 'message_deleted']:
+            if event_subtype in ['message_changed', 'message_deleted']:
                 logger.info(f"Ignoring message with subtype: {event_subtype}")
                 return
             
@@ -180,11 +64,12 @@ class SlackEventHandler:
             channel_id = event_data.get('channel')
             user_id = event_data.get('user')
             message_text = event_data.get('text', '')
+            event_type = event_data.get('type')
             thread_timestamp = event_data.get('thread_ts')
             parent_message_id = event_data.get('parent_user_id')
             
             # Deduplication: Skip if we've already processed this message
-            message_key = f"{message_id}_{channel_id}_{user_id}"
+            message_key = f"{message_id}_{channel_id}_{user_id}_{event_type}"
             if message_key in self.processed_messages:
                 print(f"🔄 SKIPPING: Already processed message: {message_key}")
                 return
@@ -197,9 +82,9 @@ class SlackEventHandler:
             print(f"🔍 DEBUG: Full event data: {event_data}")
             
             # Get app configuration from credentials
-            app_config = credentials_manager.get_app_config(app_name)
+            app_config = credentials_manager.get_app_config()
             if not app_config:
-                logger.error(f"App configuration not found for app: {app_name}")
+                logger.error(f"App configuration not found")
                 return
             
             # Skip messages sent by the bot itself
@@ -214,16 +99,6 @@ class SlackEventHandler:
                 print(f"🚫 IGNORING: Message with bot_id: {event_data.get('bot_id')}")
                 return
             
-            # Additional check: Skip if message text matches bot's typical responses
-            bot_response_patterns = [
-                "👋 This is a sample response from your Slack bot.",
-                "hi 👋",
-                "I received your message:"
-            ]
-            for pattern in bot_response_patterns:
-                if pattern in message_text:
-                    print(f"🚫 IGNORING: Message matches bot response pattern: {pattern}")
-                    return
             
             # Get user information
             user_info = self.get_user_info(user_id, app_config['bot_token'])
@@ -232,15 +107,13 @@ class SlackEventHandler:
             
             # Get channel name
             channel_name = self.get_channel_name(channel_id, app_config['bot_token'])
-                        
-            # Check if bot is mentioned
-            bot_user_id = self.get_bot_user_id(app_config['bot_token'])
-            is_bot_mentioned = self.is_bot_mentioned(message_text, bot_user_id, app_name)
-                        
+
+            is_bot_mentioned = False
             # Determine message type
             message_type = 'message'
             if event_type == 'app_mention':
                 message_type = 'app_mention'
+                is_bot_mentioned = True
                             
             # Log message processing (instead of storing in database)
             logger.info(f"Processing message {message_id} from user {user_name} in channel {channel_name} ({channel_id})")
@@ -258,24 +131,6 @@ class SlackEventHandler:
             
         except Exception as e:
             logger.error(f"Error processing message event: {e}")
-    
-    def is_bot_mentioned(self, message_text, bot_user_id, app_name="default"):
-        """Check if the bot is mentioned in the message"""
-        if not bot_user_id:
-            return False
-        
-        # Check for direct mention
-        if f"<@{bot_user_id}>" in message_text:
-            return True
-        
-        # Check for app mention (alternative format)
-        app_config = credentials_manager.get_app_config(app_name)
-        if app_config:
-            app_name_value = app_config.get('app_name', '').lower()
-            if f"@{app_name_value}" in message_text.lower():
-                return True
-        
-        return False
     
     def get_user_info(self, user_id, bot_token):
         """Get user information from Slack API"""
@@ -314,7 +169,6 @@ class SlackEventHandler:
                 data = response.json()
                 if data.get('ok'):
                     return data.get('user_id')
-            
             return None
             
         except Exception as e:
@@ -386,24 +240,51 @@ class SlackEventHandler:
             text = workflow_response.get('text', '')
             channel = workflow_response.get('channel', '')
             thread_ts = workflow_response.get('thread_ts')
-            response_type = workflow_response.get('response_type', 'in_channel')
-            
+            file_content = workflow_response.get('file_content', '')
+            converter = SlackMarkdownConverter()
+            text = converter.convert(text)
+
+            if file_content:
+                try:
+                    file_upload_slack_client = WebClient(token=bot_token)
+                # Upload the text file to Slack
+                    response = file_upload_slack_client.files_upload_v2(
+                        title="DroidAgent Tool Result",
+                        filename="droidagent_tool_result.txt",
+                        content=file_content,
+                    )
+                    
+                    # The response contains the uploaded file information
+                    uploaded_file_url = response.get("file").get("permalink")
+                    print(f"File uploaded successfully! File ID: {uploaded_file_url}")
+                    if uploaded_file_url:
+                        text = text + (f"\n\n<{uploaded_file_url}|Tool Results>")
+
+
+                except SlackApiError as e:
+                    print(f"Error uploading file: {e.response['error']}") 
+                    text = text + (f"\n\nError uploading file.")
+                        
             if not text or not channel:
                 logger.error("Invalid workflow response: missing text or channel")
                 return None
-            
+            # split into blocks of 2000 characters
+            blocks = []
+            for i in range(0, len(text), 2000):
+                blocks.append({
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": text[i:i+2000]
+                    }
+                })
             # Prepare message payload
             message_payload = {
                 "channel": channel,
-                "text": text,
-                "response_type": response_type
-            }
-            
-            # Add thread timestamp if provided
+                "blocks": blocks
+                }
             if thread_ts:
                 message_payload["thread_ts"] = thread_ts
-            
-            # Send the message
             response = requests.post(
                 f"{self.slack_api_base}/chat.postMessage",
                 headers={
@@ -429,11 +310,10 @@ class SlackEventHandler:
             logger.error(f"Error sending workflow response: {e}")
             return None
     
-    def handle_app_installed_event(self, event_data, app_name="default"):
+    def handle_app_installed_event(self, event_data):
         """Handle app_installed event - when app is added to a workspace"""
         try:
-            logger.info(f"App installed event received for app: {app_name}")
-            
+            logger.info(f"App installed event received")
             # Extract workspace information
             team_id = event_data.get('team_id')
             team_name = event_data.get('team_name', '')
@@ -447,10 +327,10 @@ class SlackEventHandler:
             logger.error(f"Error handling app installed event: {e}")
             return {"status": "error", "message": str(e)}
 
-    async def handle_app_installed_event_async(self, event_data, app_name="default"):
+    async def handle_app_installed_event_async(self, event_data):
         """Handle app_installed event - when app is added to a workspace (asynchronous)"""
         try:
-            logger.info(f"App installed event received for app: {app_name}")
+            logger.info(f"App installed event received")
             
             # Extract workspace information
             team_id = event_data.get('team_id')
@@ -463,10 +343,10 @@ class SlackEventHandler:
         except Exception as e:
             logger.error(f"Error handling app installed event: {e}")
     
-    def handle_app_uninstalled_event(self, event_data, app_name="default"):
+    def handle_app_uninstalled_event(self, event_data):
         """Handle app_uninstalled event - when app is removed from a workspace"""
         try:
-            logger.info(f"App uninstalled event received for app: {app_name}")
+            logger.info(f"App uninstalled event received")
             
             # Extract workspace information
             team_id = event_data.get('team_id')
@@ -479,10 +359,10 @@ class SlackEventHandler:
             logger.error(f"Error handling app uninstalled event: {e}")
             return {"status": "error", "message": str(e)}
 
-    async def handle_app_uninstalled_event_async(self, event_data, app_name="default"):
+    async def handle_app_uninstalled_event_async(self, event_data):
         """Handle app_uninstalled event - when app is removed from a workspace (asynchronous)"""
         try:
-            logger.info(f"App uninstalled event received for app: {app_name}")
+            logger.info(f"App uninstalled event received")
             
             # Extract workspace information
             team_id = event_data.get('team_id')
@@ -493,10 +373,10 @@ class SlackEventHandler:
         except Exception as e:
             logger.error(f"Error handling app uninstalled event: {e}")
     
-    def handle_channel_created_event(self, event_data, app_name="default"):
+    def handle_channel_created_event(self, event_data):
         """Handle channel_created event - when a new channel is created"""
         try:
-            logger.info(f"Channel created event received for app: {app_name}")
+            logger.info(f"Channel created event received")
             
             # Extract channel information
             channel_id = event_data.get('channel', {}).get('id')
@@ -516,10 +396,10 @@ class SlackEventHandler:
             logger.error(f"Error handling channel created event: {e}")
             return {"status": "error", "message": str(e)}
 
-    async def handle_channel_created_event_async(self, event_data, app_name="default"):
+    async def handle_channel_created_event_async(self, event_data):
         """Handle channel_created event - when a new channel is created (asynchronous)"""
         try:
-            logger.info(f"Channel created event received for app: {app_name}")
+            logger.info(f"Channel created event received")
             
             # Extract channel information
             channel_id = event_data.get('channel', {}).get('id')
@@ -535,10 +415,10 @@ class SlackEventHandler:
         except Exception as e:
             logger.error(f"Error handling channel created event: {e}")
 
-    async def handle_channel_deleted_event_async(self, event_data, app_name="default"):
+    async def handle_channel_deleted_event_async(self, event_data):
         """Handle channel_deleted event - when a channel is deleted (asynchronous)"""
         try:
-            logger.info(f"Channel deleted event received for app: {app_name}")
+            logger.info(f"Channel deleted event received")
             channel_id = event_data.get('channel')
             if channel_id:
                 logger.info(f"Channel deleted: {channel_id}")
@@ -547,30 +427,30 @@ class SlackEventHandler:
         except Exception as e:
             logger.error(f"Error handling channel deleted event: {e}")
 
-    async def handle_member_joined_channel_event_async(self, event_data, app_name="default"):
+    async def handle_member_joined_channel_event_async(self, event_data):
         """Handle member_joined_channel event (asynchronous)"""
         try:
-            logger.info(f"Member joined channel event received for app: {app_name}")
+            logger.info(f"Member joined channel event received")
             channel_id = event_data.get('channel')
             user_id = event_data.get('user')
             logger.info(f"User {user_id} joined channel {channel_id}")
         except Exception as e:
             logger.error(f"Error handling member joined channel event: {e}")
 
-    async def handle_member_left_channel_event_async(self, event_data, app_name="default"):
+    async def handle_member_left_channel_event_async(self, event_data):
         """Handle member_left_channel event (asynchronous)"""
         try:
-            logger.info(f"Member left channel event received for app: {app_name}")
+            logger.info(f"Member left channel event received")
             channel_id = event_data.get('channel')
             user_id = event_data.get('user')
             logger.info(f"User {user_id} left channel {channel_id}")
         except Exception as e:
             logger.error(f"Error handling member left channel event: {e}")
     
-    def handle_channel_deleted_event(self, event_data, app_name="default"):
+    def handle_channel_deleted_event(self, event_data):
         """Handle channel_deleted event - when a channel is deleted"""
         try:
-            logger.info(f"Channel deleted event received for app: {app_name}")
+            logger.info(f"Channel deleted event received")
             
             # Extract channel information
             channel_id = event_data.get('channel')
@@ -587,10 +467,10 @@ class SlackEventHandler:
             logger.error(f"Error handling channel deleted event: {e}")
             return {"status": "error", "message": str(e)}
     
-    def handle_member_joined_channel_event(self, event_data, app_name="default"):
+    def handle_member_joined_channel_event(self, event_data):
         """Handle member_joined_channel event - when a member (including bot) joins a channel"""
         try:
-            logger.info(f"Member joined channel event received for app: {app_name}")
+            logger.info(f"Member joined channel event received")
             
             # Extract event information
             channel_id = event_data.get('channel')
@@ -598,9 +478,9 @@ class SlackEventHandler:
             team_id = event_data.get('team')
             
             # Get app configuration to check if this is our bot
-            app_config = credentials_manager.get_app_config(app_name)
+            app_config = credentials_manager.get_app_config()
             if not app_config:
-                logger.error(f"App configuration not found for app: {app_name}")
+                logger.error(f"App configuration not found")
                 return {"status": "error", "message": "App not configured"}
             
             # Get bot user ID
@@ -631,10 +511,10 @@ class SlackEventHandler:
             logger.error(f"Error handling member joined channel event: {e}")
             return {"status": "error", "message": str(e)}
     
-    def handle_member_left_channel_event(self, event_data, app_name="default"):
+    def handle_member_left_channel_event(self, event_data):
         """Handle member_left_channel event - when a member (including bot) leaves a channel"""
         try:
-            logger.info(f"Member left channel event received for app: {app_name}")
+            logger.info(f"Member left channel event received")
             
             # Extract event information
             channel_id = event_data.get('channel')
@@ -642,9 +522,9 @@ class SlackEventHandler:
             team_id = event_data.get('team')
             
             # Get app configuration to check if this is our bot
-            app_config = credentials_manager.get_app_config(app_name)
+            app_config = credentials_manager.get_app_config()
             if not app_config:
-                logger.error(f"App configuration not found for app: {app_name}")
+                logger.error(f"App configuration not found")
                 return {"status": "error", "message": "App not configured"}
             
             # Get bot user ID
@@ -698,60 +578,6 @@ class SlackEventHandler:
             logger.error(f"Error getting channel name: {e}")
             return ''
     
-    async def handle_event(self, request_data, request: Request = None):
-        """Main event handler (synchronous processing)"""
-        try:
-            # Verify request signature
-            signature = request.headers.get('X-Slack-Signature') if request else None
-            timestamp = request.headers.get('X-Slack-Request-Timestamp') if request else None
-            
-            if not signature or not timestamp:
-                logger.error("Missing signature or timestamp")
-                return {"status": "error", "message": "Missing signature"}
-            
-            # Check if request is too old (replay attack protection)
-            if abs(time.time() - int(timestamp)) > 60 * 5:  # 5 minutes
-                logger.error("Request timestamp too old")
-                return {"status": "error", "message": "Request too old"}
-            
-            # Get request body for signature verification
-            request_body = await request.body() if request else b""
-            
-            # Verify signature using default app
-            if not self.verify_signature(request_body, signature, timestamp, "default"):
-                logger.error("Invalid signature")
-                return {"status": "error", "message": "Invalid signature"}
-            
-            # Handle URL verification
-            if request_data.get('type') == 'url_verification':
-                return self.handle_url_verification(request_data.get('challenge'))
-            
-            # Handle events
-            event = request_data.get('event', {})
-            event_type = event.get('type')
-            
-            if event_type in ['message', 'app_mention']:
-                return self.handle_message_event(event, "default")
-            elif event_type == 'app_installed':
-                return self.handle_app_installed_event(event, "default")
-            elif event_type == 'app_uninstalled':
-                return self.handle_app_uninstalled_event(event, "default")
-            elif event_type == 'channel_created':
-                return self.handle_channel_created_event(event, "default")
-            elif event_type == 'channel_deleted':
-                return self.handle_channel_deleted_event(event, "default")
-            elif event_type == 'member_joined_channel':
-                return self.handle_member_joined_channel_event(event, "default")
-            elif event_type == 'member_left_channel':
-                return self.handle_member_left_channel_event(event, "default")
-            else:
-                logger.info(f"Unhandled event type: {event_type}")
-                return {"status": "ignored"}
-            
-        except Exception as e:
-            logger.error(f"Error handling event: {e}")
-            return {"status": "error", "message": str(e)}
-
     async def handle_event_async(self, request_data, request: Request = None):
         """Main event handler (asynchronous processing)"""
         try:
@@ -771,14 +597,14 @@ class SlackEventHandler:
             # Get request body for signature verification
             request_body = await request.body() if request else b""
             
-            # Verify signature using default app
-            if not self.verify_signature(request_body, signature, timestamp, "default"):
+            # Verify signature using app
+            if not self.verify_signature(request_body, signature, timestamp):
                 logger.error("Invalid signature")
                 return
             
             # Handle URL verification
             if request_data.get('type') == 'url_verification':
-                await self.handle_url_verification_async(request_data.get('challenge'))
+                logger.info(f"Event Type URL verification already handled in calling function")
                 return
             
             # Handle events
@@ -786,19 +612,19 @@ class SlackEventHandler:
             event_type = event.get('type')
             
             if event_type in ['message', 'app_mention']:
-                await self.handle_message_event_async(event, "default")
+                await self.handle_message_event_async(event)
             elif event_type == 'app_installed':
-                await self.handle_app_installed_event_async(event, "default")
+                await self.handle_app_installed_event_async(event)
             elif event_type == 'app_uninstalled':
-                await self.handle_app_uninstalled_event_async(event, "default")
+                await self.handle_app_uninstalled_event_async(event)
             elif event_type == 'channel_created':
-                await self.handle_channel_created_event_async(event, "default")
+                await self.handle_channel_created_event_async(event)
             elif event_type == 'channel_deleted':
-                await self.handle_channel_deleted_event_async(event, "default")
+                await self.handle_channel_deleted_event_async(event)
             elif event_type == 'member_joined_channel':
-                await self.handle_member_joined_channel_event_async(event, "default")
+                await self.handle_member_joined_channel_event_async(event)
             elif event_type == 'member_left_channel':
-                await self.handle_member_left_channel_event_async(event, "default")
+                await self.handle_member_left_channel_event_async(event)
             else:
                 logger.info(f"Unhandled event type: {event_type}")
             

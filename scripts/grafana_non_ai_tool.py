@@ -1,75 +1,64 @@
-import requests
 import json
 import sys
 import logging
-
-MCP_URL = "http://localhost:8000/mcp"  # Change if your server is running elsewhere
+from mcp_servers.mcp_utils import send_jsonrpc, fetch_tools_list, execute_tool
+from agents import log_analyser_agent
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def send_jsonrpc(method, params=None, request_id=1):
-    payload = {
-        "jsonrpc": "2.0",
-        "method": method,
-        "params": params or {},
-        "id": request_id,
-    }
-    resp = requests.post(MCP_URL, json=payload)
-    try:
-        resp.raise_for_status()
-    except Exception as e:
-        logger.error(f"HTTP error: {e}")
-        logger.error(resp.text)
-        return None
-    return resp.json()
 
+#TODO -- create the function with the same name as your file.
+def grafana_non_ai_tool(slack_message_json):
+    params = {"datasource":"loki", "query":'{app="recommendationservice"} |= ``'}
+    logs_data = execute_tool("grafana_datasource_query_execution", str(params))
+    messages = []
+    messages.append({"role": "system", "content": 'Analyse logs and make sure to search for errors.'})
+    messages.append({"role": "user", "content": "This is the slack alert that I've received. Please analyse logs in context of it." + str(slack_message_json)})
+    ndjson_events = []
+    ndjson_events.append({'type':'tool_result','tool_name':'log_analyser','tool_config': str(params),'tool_result':logs_data})
+    agent_chat = log_analyser_agent(logs_data, messages)
+    return ndjson_events + agent_chat
+
+#boilerplating
 def main():
+    """
+    Main function to execute prompt-based workflow
+    """
     try:
         if len(sys.argv) < 2:
             logger.error("No Slack message provided")
             return {"error": "No message provided"}
         
-        slack_message_json = sys.argv[1]
-        slack_message = json.loads(slack_message_json)
-        logger.info(f"Processing message: {slack_message.get('text', 'No text')}")
-        
-        channel_id = slack_message.get('channel', '')
-        message_ts = slack_message.get('ts', '')
-        
-        # 1. Initialize
-        init_params = {"protocolVersion": "2025-06-18"}
-        init_resp = send_jsonrpc("initialize", init_params, request_id=1)
-        
-        # 2. List tools
-        tools_resp = send_jsonrpc("tools/list", request_id=2)
-        
-        # 3. Call test_connection
-        test_conn_resp = send_jsonrpc("tools/call", {"name": "test_connection", "arguments": {}}, request_id=3)
-        
-        # 4. Call fetch_dashboards
-        dashboards_resp = send_jsonrpc("tools/call", {"name": "grafana_fetch_all_dashboards", "arguments": {}}, request_id=4)
-        
-        # Prepare a summary text for Slack
-        dashboards_text = json.dumps(dashboards_resp, indent=2) if dashboards_resp else "No dashboards found."
-        response_text = f"Grafana Dashboards:\n```\n{dashboards_text}\n```"
-        
-        response = {
-            "text": response_text,
-            "channel": channel_id,
-            "thread_ts": message_ts,
-            "response_type": "in_channel"
-        }
-        logger.info(f"Generated response: {response}")
-        return response
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON provided: {e}")
-        return {"error": "Invalid message format"}
     except Exception as e:
-        logger.error(f"Error processing message: {e}")
-        return {"error": f"Processing error: {str(e)}"}
+        logger.error(f"An unexpected error occurred in main: {e}", exc_info=True)
+        return {"error": f"An unexpected error occurred: {str(e)}"}
+    slack_message_json = json.loads(sys.argv[1])
+    agent_chat_response = grafana_non_ai_tool(slack_message_json)
+    text = ''
+    file_content = ""
+    for response in agent_chat_response:
+        if response['type'] == 'chat_text':
+            text = text + (response['content'])
+        # add tool result to a .txt file
+        elif response['type'] == 'tool_result':
+            text = text + ("\n\nTool Call: " + response['tool_name'] + " Tool Arguments: " + str(response['tool_config']) + " result: in attached .txt file")
+            file_content = file_content + ("\n\nTool Call:" + response['tool_name'] + " Tool Arguments: " + str(response['tool_config']) + " result: " + str(response['tool_result']))
+        elif response['type'] == 'time_taken':
+            text = text + (response['time_taken'])
+    slack_message_response = {
+        "text": text,
+        "channel": slack_message_json.get('channel'),
+        "thread_ts": slack_message_json.get('thread_ts',slack_message_json.get('ts',''))
+    }    
+    if file_content:
+        slack_message_response['file_content'] = file_content
+    return slack_message_response
 
 if __name__ == "__main__":
     result = main()
-    print(json.dumps(result))
+    if result:
+        print(json.dumps(result))
+
+# prompt_ai_agent("prompts/sample_prompt.md","Error in Service, please fix it.")
