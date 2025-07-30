@@ -1,6 +1,5 @@
 # Workflow Configuration
 # Each workflow defines conditions for matching messages and actions to execute
-
 # fields available for workflow: Default values will be triggered if not mentioned in the config.
 # name: name of rule. Only for display/readability purposes.
 # channel_name: matched against channel_name. Default is "*" -- matching for any / every user / bot.
@@ -8,34 +7,28 @@
 # wildcard: matched against the message default. Default is "*" -- matching for any / every text. 
 # action_script: file_path within the scripts directory.
 # app_mention_required: evaluates whether bot was tagged or not. Default is false.
-
 workflows:
-  - name: "prompt_based_ai"
-    channel_name: "drdroid-slack-bot-tester"
+  - name: "default_prompt"
+    channel_name: "test-slack-sid"
     action_prompt: "sample_prompt.md"
     app_mention_required: true
-    wildcard: "*prompt_run*"
-
+    wildcard: "prompt_run"
   - name: "hello_response"
-    channel_name: "drdroid-slack-bot-tester"
+    channel_name: "test-slack-sid"
     user_name: "*" 
     wildcard: "hi"
     action_script: "sample_response.py"
-
-  - name: "chatbot"
-    channel_name: "drdroid-slack-bot-tester"
-    action_script: "llm_chat.py"
-    app_mention_required: true
-    wildcard: "*chatbot*"
-
-  - name: "grafana-ai-tool"
-    channel_name: "drdroid-slack-bot-tester"
+  - name: "ai_tool_grafana_focus"
+    channel_name: "test-slack-sid"
     action_script: "grafana_ai_tool.py"
     app_mention_required: true
     wildcard: "*grafana ai*"
-
-  - name: "grafana-tool-non-ai-"
-    channel_name: "drdroid-slack-bot-tester"
+  - name: "log_analysis"
+    channel_name: "test-slack-sid"
     action_script: "grafana_non_ai_tool.py"
     app_mention_required: true
-    wildcard: "*grafana non ai tool*"
+    wildcard: "*4xx*"
+  - name: "default_prompt"
+    channel_name: "test-slack-sid"
+    app_mention_required: true
+    wildcard: "*"

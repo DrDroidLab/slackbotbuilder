@@ -26,7 +26,6 @@ def setup_credentials():
     
     # Get credentials from user
     app_id = input("App ID: ").strip()
-    app_name = input("App Name (default: AI Slack Bot): ").strip() or "AI Slack Bot"
     signing_secret = input("Signing Secret: ").strip()
     bot_token = input("Bot User OAuth Token (starts with xoxb-): ").strip()
     
@@ -45,7 +44,6 @@ def setup_credentials():
     credentials = {
         "slack": {
             "app_id": app_id,
-            "app_name": app_name,
             "signing_secret": signing_secret,
             "bot_token": bot_token
         },
@@ -64,7 +62,7 @@ def setup_credentials():
         
         # Validate the credentials
         credentials_manager.reload_credentials()
-        if credentials_manager.validate_credentials("default"):
+        if credentials_manager.validate_credentials():
             print("✅ Credentials are valid!")
         else:
             print("⚠️  Credentials may have issues. Please check the values.")
@@ -92,7 +90,7 @@ def validate_current_credentials():
     for key, value in summary.items():
         print(f"  {key}: {value}")
     
-    if credentials_manager.validate_credentials("default"):
+    if credentials_manager.validate_credentials():
         print("\n✅ Credentials are valid!")
     else:
         print("\n❌ Credentials have issues. Please check the values.")

@@ -1,13 +1,7 @@
 {
     "mcpServers": {
-      "sample_server_1": {
-        "url": "http://localhost:8000/mcp"
-      },
-      "sample_server_2": {
-        "url": "http://localhost:8000/mcp",
-        "headers": {
-          "Authorization": "Bearer {token_here}"
-        }
+      "grafana_integration": {
+        "url": "http://localhost:8000/playbooks/mcp"
       }
     }
 }

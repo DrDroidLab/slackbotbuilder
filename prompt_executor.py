@@ -1,31 +1,36 @@
 import json
 import sys
 import logging
-from openai import OpenAI
-from slack_credentials_manager import credentials_manager
+import time
 from mcp_servers.mcp_utils import fetch_tools_list
 from agents import agent_with_tools
-import asyncio
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-## core code
-def grafana_ai_tool(slack_message):
-    api_key = credentials_manager.get_openai_api_key()
+def prompt_ai_agent(slack_message_json,history=[],tools = 'all'):
+    system_prompt = f"""You are an AI assistant specialized in helping DevOps/SRE/On-call engineers in their day-to-day operations -- including debug production issues, proactive monitoring setup and more. 
+                         Your primary goal is to provide and execute practical, actionable debugging guidance based *directly* on the user's problem/alert description.
 
-    system_prompt = f"""Investigate this alert and provide a summary by analysing metrics and dashboards."""
+CRITICAL INSTRUCTIONS:
+- Analyze the user's message to understand their specific problem. You will receive instructions / notes from user or data sources for services. Prioritise these instructions over other information.
+- You have access to multiple relevant tools. There will be tools that will help you get context and then there will be tools that will help you fetch actual data or take actions.
+- Use the combination of both to help the user. Make sure to think logically as a software engineer would think who needs to figure out the issue and fix it. Use tools with right justifications.
+- Text should be in Markdown format."""
     messages = []
     messages.append({"role": "system", "content": system_prompt})
-    messages.append({"role": "user", "content": str(slack_message)})
-    agent_chat = []
-    client = OpenAI(api_key=api_key)
-    available_tools = fetch_tools_list()
-    agent_chat = agent_with_tools(messages, available_tools)
+    messages.append({"role": "user", "content": str(slack_message_json)})
+    messages.extend(history)
+    if tools == 'all':
+        available_tools = fetch_tools_list()
+        agent_chat = agent_with_tools(messages, available_tools)
+    elif tools == 'none':
+        available_tools = []
+        #todo
+    # add handling for approval flows
     return agent_chat
 
-#boilerplating
 def main():
     """
     Main function to execute prompt-based workflow
@@ -38,8 +43,12 @@ def main():
     except Exception as e:
         logger.error(f"An unexpected error occurred in main: {e}", exc_info=True)
         return {"error": f"An unexpected error occurred: {str(e)}"}
+    start_time = time.monotonic()
     slack_message_json = json.loads(sys.argv[1])
-    agent_chat_response = grafana_ai_tool(slack_message_json)
+    agent_chat_response = prompt_ai_agent(slack_message_json)
+    time_taken = time.monotonic() - start_time
+    time_taken_str = f"\n\n_Time taken: {time_taken:.2f} seconds_"
+    agent_chat_response.append({'type': 'time_taken','time_taken': time_taken_str})
     text = ''
     file_content = ""
     for response in agent_chat_response:
@@ -63,6 +72,6 @@ def main():
 if __name__ == "__main__":
     result = main()
     if result:
-        print(json.dumps(result))
+        print(json.dumps(result)) 
 
 # prompt_ai_agent("prompts/sample_prompt.md","Error in Service, please fix it.")

@@ -1,0 +1,1 @@
+fetch all logs from the recommendationservice in loki
