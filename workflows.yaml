@@ -6,13 +6,13 @@ workflows:
     wildcard: "prompt_run"
 
   - name: "hello_response"
-    channel_name: "drdroid-slack-bot-tester"
+    channel_name: "*"
     user_name: "*" 
     wildcard: "hi"
     action_script: "sample_response.py"
 
   - name: "default_prompt"
-    channel_name: "drdroid-slack-bot-tester"
+    channel_name: "*"
     app_mention_required: true
     wildcard: "*"
 
