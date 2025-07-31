@@ -48,7 +48,8 @@ async def handle_slack_events(request: Request, background_tasks: BackgroundTask
     """Handle Slack event subscriptions"""
     try:
         request_data = await request.json()
-        print(request.headers)
+        if 'x-slack-retry-num' in request.headers or 'x-slack-retry-reason' in request.headers:
+            print('Retry from Slack:' + str(request.headers['x-slack-retry-num']) + ' ' + str(request.headers['x-slack-retry-reason']))
         # Return 200 immediately and process in background
         background_tasks.add_task(slack_event_handler.handle_event_async, request_data, request)
         if request_data.get('type') == 'url_verification':
