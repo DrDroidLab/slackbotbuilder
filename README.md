@@ -1,7 +1,6 @@
 # AI Slack Bot Builder
 
-A Ready-to-use Slack bot that can process messages, respond to mentions, and automate workflows using AI. Built with FastAPI and designed for extensibility and easy configuration.
-
+A Ready-to-use Slack bot connected to LLMs & MCP Servers (Your Data) that can process messages, respond to mentions, and automate workflows.
 ## Quick Setup
 
 ### 1. Generate a public https url from localhost (using ngrok)
@@ -20,6 +19,11 @@ A Ready-to-use Slack bot that can process messages, respond to mentions, and aut
 5. Install the app to your workspace and copy the credentials to `credentials.yaml`
 6. Create a channel `drdroid-slack-bot-tester` and add your app to it
 
+### Add or Create an MCP Server
+
+1. Go to `mcp_servers/mcp.json` and add an existing MCP Server Config (URL based, non-authenticated MCP servers are supported at the moment).
+
+Create an MCP Server for Grafana / K8s / Signoz / other tools in 1-click from this [open source project](https://github.com/DrDroidLab/drd-vpc-agent/tree/mcp_main).
 
 ### 3. Install Dependencies
 
@@ -36,9 +40,15 @@ uv run python app.py
 
 The bot will start on `http://localhost:5000`. Your ngrok public url will point to this server.
 
+### Sample Usage
+1. Create a new channel named `drdroid-slack-bot-tester` and add your bot to that channel.
+2. Send a message `Can you check dashboard X in Grafana? @BotName` in the channel.
+3. The bot should respond with: `👋 This is a sample response from your Slack bot.`
+
+
 ## Workflow Configuration
 
-Workflows are defined in `workflows.yaml` and allow you to create custom responses based on message patterns:
+Workflows are defined in `workflows.yaml` and allow you to create custom responses based on message patterns (think alert based automations):
 
 ```yaml
 workflows:
@@ -68,11 +78,6 @@ workflows:
 - **`*hi`**: Matches text ending with "hi" (e.g., "say hi")
 
 After any changes in the workflows and scripts, restart the server. 
-
-### Sample Usage
-1. Create a new channel named `drdroid-slack-bot-tester` and add your bot to that channel
-2. Send a message containing `hi` in the channel
-3. The bot should respond with: `👋 This is a sample response from your Slack bot.`
 
 ## Health Check
 
