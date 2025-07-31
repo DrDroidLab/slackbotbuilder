@@ -31,8 +31,8 @@ except Exception as e:
 
 def send_jsonrpc(method, params=None, request_id=1):
     if len(mcp_servers) == 0:
-        logger.error("No MCP servers found.")
-        return {}
+        logger.warning("No MCP servers found. Continuing without MCP functionality.")
+        return {"result": {"message": "No MCP servers configured"}}
     server_name = list(mcp_servers.keys())[0]
     payload = {
         "jsonrpc": "2.0",
@@ -51,7 +51,7 @@ def send_jsonrpc(method, params=None, request_id=1):
 
 def fetch_tools_list(params=None, request_id=1):
     if len(mcp_servers) == 0:
-        logger.error("No MCP servers found.")
+        logger.warning("No MCP servers found. Continuing without MCP functionality.")
         return []
     server_name = list(mcp_servers.keys())[0]
     payload = {
@@ -71,8 +71,8 @@ def fetch_tools_list(params=None, request_id=1):
 
 def execute_tool(tool_name, arguments, request_id=1):
     if len(mcp_servers) == 0:
-        logger.error("No MCP servers found.")
-        return None
+        logger.warning("No MCP servers found. Continuing without MCP functionality.")
+        return [{'message': f'Tool {tool_name} not available - no MCP servers configured'}]
     server_name = list(mcp_servers.keys())[0]
     payload = {
         "jsonrpc": "2.0",
