@@ -19,13 +19,16 @@ A Ready-to-use Slack bot connected to LLMs & MCP Servers (Your Data) that can pr
 5. Install the app to your workspace and copy the credentials to `credentials.yaml`
 6. Create a channel `drdroid-slack-bot-tester` and add your app to it
 
-### 3. Add or Create an MCP Server
+### 3. Add your OpenAI Key
 
+1. Add your OpenAI key to credentials.yaml
+
+### 4. Add or Create an MCP Server
 1. Go to `mcp_servers/mcp.json` and add an existing MCP Server Config (URL based, non-authenticated MCP servers are supported at the moment).
 
-Create an MCP Server for Grafana / K8s / Signoz / other tools in 1-click from this [open source project](https://github.com/DrDroidLab/drd-vpc-agent/tree/mcp_main).
+Create an MCP Server for Grafana / K8s / Signoz / other tools in 1-click from this [open source project](http://github.com/DrDroidLab/monitoring-mcp-servers/).
 
-### 4. Install Dependencies & Start the server
+### 5. Install Dependencies & Start the server
 
 ```bash
 pip install uv
