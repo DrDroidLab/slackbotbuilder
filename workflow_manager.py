@@ -7,6 +7,7 @@ import logging
 from typing import Dict, Optional, Any
 import sys
 import requests
+from default_agent import agent_wrapper_fn
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,7 @@ class WorkflowManager:
             return self.execute_script_workflow(message_data, action_script)
         
         if not action_prompt and not action_script:
-            return self.execute_prompt_workflow(message_data)
+            return agent_wrapper_fn(message_data)
 
         logger.error("No action_script or action_prompt specified in workflow")
         return None            
