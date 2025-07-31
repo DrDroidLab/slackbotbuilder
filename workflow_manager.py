@@ -239,6 +239,15 @@ class WorkflowManager:
         if not workflow:
             return None
 
+
+        # Add magnifying glass reaction to acknowledge the user's message (only after confirming it's not a bot message)
+        try:
+            self.add_reaction(message_data['channel'], message_data['ts'], "mag")
+            logger.info(f"Added magnifying glass reaction to user message {message_data['ts']}")
+        except Exception as e:
+            logger.error(f"Failed to add reaction to message {message_data['ts']}: {e}")
+        
+
         if 'thread_ts' in message_data and 'ts' in message_data and message_data['thread_ts']!=message_data['ts']:
             conversation_history = self.get_conversation_history(message_data['channel'], message_data['thread_ts'])
             if conversation_history:
@@ -252,7 +261,41 @@ class WorkflowManager:
             "total_workflows": len(self.workflows),
             "workflows_file": self.workflows_file
         }
-    
+
+    def add_reaction(self, channel_id, message_ts, emoji):
+        """Add a reaction to a message"""
+        try:
+            from slack_credentials_manager import credentials_manager
+            bot_token = credentials_manager.get_app_config()['bot_token']
+            response = requests.post(
+                f"https://slack.com/api/reactions.add",
+                headers={
+                    "Authorization": f"Bearer {bot_token}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "channel": channel_id,
+                    "timestamp": message_ts,
+                    "name": emoji
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('ok'):
+                    logger.info(f"Reaction '{emoji}' added to message {message_ts}")
+                    return True
+                else:
+                    logger.error(f"Failed to add reaction: {data.get('error', 'Unknown error')}")
+            else:
+                logger.error(f"Failed to add reaction: {response.text}")
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error adding reaction: {e}")
+            return False
+
     def get_conversation_history(self, channel_id, thread_ts):
         from slack_credentials_manager import credentials_manager
         slack_api_base = "https://slack.com/api"
