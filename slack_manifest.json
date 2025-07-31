@@ -32,7 +32,8 @@
         "im:write",
         "mpim:write",
         "files:write",
-        "files:read"
+        "files:read",
+        "reactions:write"
       ]
     }
   },
@@ -60,4 +61,4 @@
     "socket_mode_enabled": false,
     "token_rotation_enabled": false
   }
-} 
+}
