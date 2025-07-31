@@ -99,6 +99,13 @@ class SlackEventHandler:
                 print(f"🚫 IGNORING: Message with bot_id: {event_data.get('bot_id')}")
                 return
             
+            # Add magnifying glass reaction to acknowledge the user's message (only after confirming it's not a bot message)
+            try:
+                self.add_reaction(channel_id, message_id, "mag", app_config['bot_token'])
+                logger.info(f"Added magnifying glass reaction to user message {message_id}")
+            except Exception as e:
+                logger.error(f"Failed to add reaction to message {message_id}: {e}")
+            
             
             # Get user information
             user_info = self.get_user_info(user_id, app_config['bot_token'])
@@ -233,6 +240,38 @@ class SlackEventHandler:
             logger.error(f"Error sending message: {e}")
             return None
     
+    def add_reaction(self, channel_id, message_ts, emoji, bot_token):
+        """Add a reaction to a message"""
+        try:
+            response = requests.post(
+                f"{self.slack_api_base}/reactions.add",
+                headers={
+                    "Authorization": f"Bearer {bot_token}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "channel": channel_id,
+                    "timestamp": message_ts,
+                    "name": emoji
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('ok'):
+                    logger.info(f"Reaction '{emoji}' added to message {message_ts}")
+                    return True
+                else:
+                    logger.error(f"Failed to add reaction: {data.get('error', 'Unknown error')}")
+            else:
+                logger.error(f"Failed to add reaction: {response.text}")
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error adding reaction: {e}")
+            return False
+
     def send_workflow_response(self, workflow_response, bot_token):
         """Send workflow response to Slack"""
         try:
