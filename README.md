@@ -19,22 +19,17 @@ A Ready-to-use Slack bot connected to LLMs & MCP Servers (Your Data) that can pr
 5. Install the app to your workspace and copy the credentials to `credentials.yaml`
 6. Create a channel `drdroid-slack-bot-tester` and add your app to it
 
-### Add or Create an MCP Server
+### 3. Add or Create an MCP Server
 
 1. Go to `mcp_servers/mcp.json` and add an existing MCP Server Config (URL based, non-authenticated MCP servers are supported at the moment).
 
 Create an MCP Server for Grafana / K8s / Signoz / other tools in 1-click from this [open source project](https://github.com/DrDroidLab/drd-vpc-agent/tree/mcp_main).
 
-### 3. Install Dependencies
+### 4. Install Dependencies & Start the server
 
 ```bash
 pip install uv
 uv sync
-```
-
-### 4. Start the Server
-
-```bash
 uv run python app.py
 ```
 
@@ -56,7 +51,8 @@ workflows:
     channel_name: "*"        # Channel name to match (or "*" for any channel)
     user_name: "*"           # User name to match (or "*" for any user)
     wildcard: "hi"           # Wildcard pattern to match in message text
-    action_script: "sample_response.py"
+    action_script: "sample_response.py" # Script
+    action_prompt: "prompt.md" #
     app_mention_required: true        # Only match if bot is mentioned
 ```
 
