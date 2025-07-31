@@ -87,13 +87,6 @@ class SlackEventHandler:
                 logger.error(f"App configuration not found")
                 return
             
-            # Immediately add magnifying glass reaction to acknowledge the message
-            try:
-                self.add_reaction(channel_id, message_id, "mag", app_config['bot_token'])
-                logger.info(f"Added magnifying glass reaction to message {message_id}")
-            except Exception as e:
-                logger.error(f"Failed to add reaction to message {message_id}: {e}")
-            
             # Skip messages sent by the bot itself
             bot_user_id = self.get_bot_user_id(app_config['bot_token'])
             print(f"🔍 DEBUG: Message from user_id: {user_id}, bot_user_id: {bot_user_id}")
@@ -105,6 +98,13 @@ class SlackEventHandler:
             if event_data.get('bot_id'):
                 print(f"🚫 IGNORING: Message with bot_id: {event_data.get('bot_id')}")
                 return
+            
+            # Add magnifying glass reaction to acknowledge the user's message (only after confirming it's not a bot message)
+            try:
+                self.add_reaction(channel_id, message_id, "mag", app_config['bot_token'])
+                logger.info(f"Added magnifying glass reaction to user message {message_id}")
+            except Exception as e:
+                logger.error(f"Failed to add reaction to message {message_id}: {e}")
             
             
             # Get user information
