@@ -1,3 +1,32 @@
+workflows:
+  - name: "default_prompt"
+    channel_name: "drdroid-slack-bot-tester"
+    action_prompt: "sample_prompt.md"
+    app_mention_required: true
+    wildcard: "prompt_run"
+
+  - name: "hello_response"
+    channel_name: "drdroid-slack-bot-tester"
+    user_name: "*" 
+    wildcard: "hi"
+    action_script: "sample_response.py"
+
+  - name: "default_prompt"
+    channel_name: "drdroid-slack-bot-tester"
+    app_mention_required: true
+    wildcard: "*"
+
+  # - name: "ai_tool_grafana_focus"
+  #   channel_name: "drdroid-slack-bot-tester"
+  #   action_script: "grafana_ai_tool.py"
+  #   app_mention_required: true
+  #   wildcard: "*grafana ai*"
+  # - name: "log_analysis"
+  #   channel_name: "drdroid-slack-bot-tester"
+  #   action_script: "grafana_non_ai_tool.py"
+  #   app_mention_required: true
+  #   wildcard: "*4xx*"
+
 # Workflow Configuration
 # Each workflow defines conditions for matching messages and actions to execute
 # fields available for workflow: Default values will be triggered if not mentioned in the config.
@@ -7,28 +36,3 @@
 # wildcard: matched against the message default. Default is "*" -- matching for any / every text. 
 # action_script: file_path within the scripts directory.
 # app_mention_required: evaluates whether bot was tagged or not. Default is false.
-workflows:
-  - name: "default_prompt"
-    channel_name: "test-slack-sid"
-    action_prompt: "sample_prompt.md"
-    app_mention_required: true
-    wildcard: "prompt_run"
-  - name: "hello_response"
-    channel_name: "test-slack-sid"
-    user_name: "*" 
-    wildcard: "hi"
-    action_script: "sample_response.py"
-  - name: "ai_tool_grafana_focus"
-    channel_name: "test-slack-sid"
-    action_script: "grafana_ai_tool.py"
-    app_mention_required: true
-    wildcard: "*grafana ai*"
-  - name: "log_analysis"
-    channel_name: "test-slack-sid"
-    action_script: "grafana_non_ai_tool.py"
-    app_mention_required: true
-    wildcard: "*4xx*"
-  - name: "default_prompt"
-    channel_name: "test-slack-sid"
-    app_mention_required: true
-    wildcard: "*"
