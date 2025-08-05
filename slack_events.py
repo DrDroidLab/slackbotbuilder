@@ -99,6 +99,13 @@ class SlackEventHandler:
                 print(f"🚫 IGNORING: Message with bot_id: {event_data.get('bot_id')}")
                 return
             
+            # Add magnifying glass reaction to acknowledge the user's message (only after confirming it's not a bot message)
+            try:
+                self.add_reaction(channel_id, message_id, "mag", app_config['bot_token'])
+                logger.info(f"Added magnifying glass reaction to user message {message_id}")
+            except Exception as e:
+                logger.error(f"Failed to add reaction to message {message_id}: {e}")
+            
             
             # Get user information
             user_info = self.get_user_info(user_id, app_config['bot_token'])

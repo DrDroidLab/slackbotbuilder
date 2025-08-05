@@ -7,9 +7,51 @@ workflows:
 
   - name: "hello_response"
     channel_name: "*"
-    user_name: "*" 
+    user_name: "*"
     wildcard: "hi"
     action_script: "sample_response.py"
+
+  - name: "k8s_5xx_investigation"
+    channel_name: "*"
+    action_script: "k8s_5xx_errors_tool.py"
+    app_mention_required: true
+    wildcard: "*5xx*"
+
+  - name: "clear_server_caches"
+    channel_name: "*"
+    action_script: "clear_server_caches_tool.py"
+    app_mention_required: true
+    wildcard: "*clear*cache*"
+
+  - name: "grafana_nonprod_check"
+    channel_name: "*"
+    action_prompt: "grafana_nonprod_check.md"
+    app_mention_required: true
+    wildcard: "*grafana*non-prod*"
+
+  - name: "malicious_ip_restriction"
+    channel_name: "*"
+    action_prompt: "malicious_ip_restriction.md"
+    app_mention_required: true
+    wildcard: "*malicious*ip*"
+
+  - name: "build_verification"
+    channel_name: "*"
+    action_script: "build_verification_tool.py"
+    app_mention_required: true
+    wildcard: "*build*verify*"
+
+  - name: "k8s_auto_restart"
+    channel_name: "*"
+    action_script: "k8s_auto_restart_tool.py"
+    app_mention_required: true
+    wildcard: "*restart*"
+
+  - name: "service_latency_spike_analyser"
+    channel_name: "*"
+    action_prompt: "service_latency_spike_analyser.md"
+    app_mention_required: true
+    wildcard: "*latency*spike*"
 
   - name: "default_prompt"
     channel_name: "*"
@@ -26,13 +68,12 @@ workflows:
   #   action_script: "grafana_non_ai_tool.py"
   #   app_mention_required: true
   #   wildcard: "*4xx*"
-
 # Workflow Configuration
 # Each workflow defines conditions for matching messages and actions to execute
 # fields available for workflow: Default values will be triggered if not mentioned in the config.
 # name: name of rule. Only for display/readability purposes.
 # channel_name: matched against channel_name. Default is "*" -- matching for any / every user / bot.
 # user_name: matched against user_name/bot_name. Default is "*" -- matching for any / every user / bot.
-# wildcard: matched against the message default. Default is "*" -- matching for any / every text. 
+# wildcard: matched against the message default. Default is "*" -- matching for any / every text.
 # action_script: file_path within the scripts directory.
 # app_mention_required: evaluates whether bot was tagged or not. Default is false.
