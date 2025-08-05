@@ -1,7 +1,7 @@
 {
-    "mcpServers": {
-      "grafana_integration": {
-        "url": "http://localhost:8000/playbooks/mcp"
-      }
+  "mcpServers": {
+    "droid-vpc-agent-v2": {
+      "url": "https://droid-mcp-playground.demo.drdroid.io/playbooks/mcp"
     }
+  }
 }
