@@ -4,7 +4,8 @@
 
 This repo is a part of the DIY toolkit to build your own AI Debugging Agent. Spinning up this repo will give you an AI Agent that can:
 
-1. Leverage scripts, prompts and knowledge base to improve controllability of your AI Debugging agent
+0. Work with some general purpose intelligence out-of-the-box
+1. Leverage scripts, prompts and knowledge base to debug your production issues
 2. Access and query monitoring tools configured as MCP servers
 3. Interact and respond to user queries from Slack
 4. Listen to alerts on Slack and auto-respond to it
