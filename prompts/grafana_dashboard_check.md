@@ -1,4 +1,4 @@
-# Grafana Non-Prod Dashboard Check
+# Grafana Dashboard Check
 
 Go to the URL `<grafana-url>`
 
@@ -18,7 +18,7 @@ sum(rate(apisix_http_status{code=~"",service=~""}[2m])) / sum(rate(apisix_http_s
 
 ## Instructions:
 
-1. Check all the panels in this Grafana Dashboard (Non-prod SLO)
+1. Check all the panels in this Grafana Dashboard (SLO Dashboard)
 2. Check for any anomalies in the traffic from each window
 3. See if there are dips or spikes for the past 24h window
 4. Analyze the data and provide insights on:
