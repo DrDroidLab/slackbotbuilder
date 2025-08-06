@@ -2,6 +2,7 @@ import json
 import sys
 import logging
 import time
+import os
 from mcp_servers.mcp_utils import fetch_tools_list
 from agents import agent_with_tools
 
@@ -19,7 +20,11 @@ CRITICAL INSTRUCTIONS:
 - Use the combination of both to help the user. Make sure to think logically as a software engineer would think who needs to figure out the issue and fix it. Use tools with right justifications.
 - Text should be in Markdown format."""
     messages = []
+    # if there's a file global_instructions.md, use it as a system prompt
     messages.append({"role": "system", "content": system_prompt})
+    if os.path.exists('global_instructions.md'):
+        with open('global_instructions.md', 'r') as file:
+            messages.append({"role": "user", "content": "This is a global instructions file: " + file.read()})
     messages.append({"role": "user", "content": str(slack_message_json)})
     messages.extend(history)
     if tools == 'all':
