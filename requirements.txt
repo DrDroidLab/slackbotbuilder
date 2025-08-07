@@ -4,4 +4,5 @@ PyGithub
 psycopg2-binary
 python-dotenv
 requests
-PyYAML 
+PyYAML
+git+https://github.com/DrDroidLab/drdroid-debug-toolkit.git 
