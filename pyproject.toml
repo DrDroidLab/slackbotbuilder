@@ -17,6 +17,7 @@ dependencies = [
     "tiktoken>=0.7.0",
     "slack-sdk>=3.36.0",
     "markdown-to-mrkdwn>=0.2.0",
+    "drdroid-debug-toolkit",
 ]
 requires-python = ">=3.8.1"
 
@@ -52,3 +53,6 @@ line_length = 88
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"] 
+
+[tool.uv.sources]
+drdroid-debug-toolkit = { git = "https://github.com/DrDroidLab/drdroid-debug-toolkit.git", rev = "master" }
