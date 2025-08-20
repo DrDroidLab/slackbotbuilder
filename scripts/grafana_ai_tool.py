@@ -2,9 +2,9 @@ import json
 import sys
 import logging
 from openai import OpenAI
-from slack_credentials_manager import credentials_manager
+from slack_utils.slack_credentials_manager import credentials_manager
 from mcp_servers.mcp_utils import fetch_tools_list
-from agents import agent_with_tools
+from agents.agents import agent_with_tools
 import asyncio
 
 # Set up logging

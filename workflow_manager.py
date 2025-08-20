@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Optional, Any
 import sys
 import requests
-from default_agent import agent_wrapper_fn
+from agents.default_agent import agent_wrapper_fn
 
 logger = logging.getLogger(__name__)
 
@@ -266,7 +266,7 @@ class WorkflowManager:
     def add_reaction(self, channel_id, message_ts, emoji):
         """Add a reaction to a message"""
         try:
-            from slack_credentials_manager import credentials_manager
+            from slack_utils.slack_credentials_manager import credentials_manager
             bot_token = credentials_manager.get_app_config()['bot_token']
             response = requests.post(
                 f"https://slack.com/api/reactions.add",
@@ -298,7 +298,7 @@ class WorkflowManager:
             return False
 
     def get_conversation_history(self, channel_id, thread_ts):
-        from slack_credentials_manager import credentials_manager
+        from slack_utils.slack_credentials_manager import credentials_manager
         slack_api_base = "https://slack.com/api"
         slack_token = credentials_manager.get_app_config()['bot_token']
         url = slack_api_base + "/conversations.replies"

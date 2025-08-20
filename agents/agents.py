@@ -1,5 +1,5 @@
 from openai import OpenAI
-from slack_credentials_manager import credentials_manager
+from slack_utils.slack_credentials_manager import credentials_manager
 import json
 from mcp_servers.mcp_utils import execute_tool
 import tiktoken

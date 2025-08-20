@@ -4,7 +4,7 @@ import logging
 import time
 import os
 from mcp_servers.mcp_utils import fetch_tools_list
-from agents import agent_with_tools
+from agents.agents import agent_with_tools
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -36,20 +36,19 @@ CRITICAL INSTRUCTIONS:
     # add handling for approval flows
     return agent_chat
 
-def main():
+def agent_wrapper_fn(slack_message_json):
     """
     Main function to execute prompt-based workflow
     """
     try:
-        if len(sys.argv) < 2:
+        if not slack_message_json:
             logger.error("No Slack message provided")
             return {"error": "No message provided"}
-        
     except Exception as e:
         logger.error(f"An unexpected error occurred in main: {e}", exc_info=True)
         return {"error": f"An unexpected error occurred: {str(e)}"}
+    print(slack_message_json)
     start_time = time.monotonic()
-    slack_message_json = json.loads(sys.argv[1])
     agent_chat_response = prompt_ai_agent(slack_message_json)
     time_taken = time.monotonic() - start_time
     time_taken_str = f"\n\n_Time taken: {time_taken:.2f} seconds_"
@@ -75,8 +74,7 @@ def main():
     return slack_message_response
 
 if __name__ == "__main__":
-    result = main()
-    if result:
-        print(json.dumps(result)) 
+    print("Test")
+    
 
 # prompt_ai_agent("prompts/sample_prompt.md","Error in Service, please fix it.")

@@ -4,7 +4,7 @@ import time
 import logging
 from fastapi import Request, BackgroundTasks
 import requests
-from slack_credentials_manager import credentials_manager
+from slack_utils.slack_credentials_manager import credentials_manager
 from workflow_manager import workflow_manager
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError

@@ -2,7 +2,7 @@ import json
 import sys
 import logging
 from mcp_servers.mcp_utils import send_jsonrpc, fetch_tools_list, execute_tool
-from agents import log_analyser_agent
+from agents.agents import log_analyser_agent
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

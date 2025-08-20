@@ -3,7 +3,7 @@ import sys
 import logging
 import re
 from mcp_servers.mcp_utils import execute_tool
-from agents import agent_with_tools
+from agents.agents import agent_with_tools
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

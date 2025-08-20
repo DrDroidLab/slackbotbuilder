@@ -5,8 +5,8 @@ import json
 import os
 import asyncio
 from datetime import datetime
-from slack_events import slack_event_handler
-from slack_credentials_manager import credentials_manager
+from slack_utils.slack_events import slack_event_handler
+from slack_utils.slack_credentials_manager import credentials_manager
 from workflow_manager import workflow_manager
 
 app = FastAPI(title="AI Slack Bot Builder", version="1.0.0")
