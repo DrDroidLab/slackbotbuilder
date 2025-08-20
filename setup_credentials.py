@@ -6,7 +6,7 @@ This script helps you configure your Slack app credentials in the YAML file.
 
 import os
 import yaml
-from slack_credentials_manager import credentials_manager
+from slack_utils.slack_credentials_manager import credentials_manager
 
 def setup_credentials():
     """Interactive setup for Slack credentials"""

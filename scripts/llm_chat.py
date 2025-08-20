@@ -2,7 +2,7 @@ import json
 import sys
 import logging
 from openai import OpenAI
-from slack_credentials_manager import credentials_manager
+from slack_utils.slack_credentials_manager import credentials_manager
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
